@@ -62,7 +62,11 @@
                                 @endif
                             </div>
 
-                            <div class="flex flex-1 flex-col gap-3 p-5">
+                            <form method="POST" action="{{ route('cart.add') }}" class="flex flex-1 flex-col gap-3 p-5">
+                                @csrf
+                                <input type="hidden" name="po_period_product_id" value="{{ $item->id }}">
+                                <input type="hidden" name="qty" value="1">
+
                                 <div>
                                     <h3 class="text-lg font-bold text-charcoal">{{ $product->name }}</h3>
                                     @if ($product->description)
@@ -75,16 +79,24 @@
                                         <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-charcoal/50">Ukuran</p>
                                         <div class="flex flex-wrap gap-2">
                                             @foreach ($product->size_options as $index => $size)
-                                                <button
-                                                    type="button"
-                                                    disabled
-                                                    class="rounded-brand border px-3 py-1 text-sm font-medium {{ $index === 0 ? 'border-brand bg-brand text-white' : 'border-brand/30 bg-white text-charcoal' }}"
-                                                >
-                                                    {{ $size }}
-                                                </button>
+                                                <label class="cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="size"
+                                                        value="{{ $size }}"
+                                                        class="peer hidden"
+                                                        {{ $index === 0 ? 'checked' : '' }}
+                                                        {{ $soldOut ? 'disabled' : '' }}
+                                                    >
+                                                    <span class="rounded-brand border border-brand/30 bg-white px-3 py-1 text-sm font-medium text-charcoal peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white">
+                                                        {{ $size }}
+                                                    </span>
+                                                </label>
                                             @endforeach
                                         </div>
                                     </div>
+                                @else
+                                    <input type="hidden" name="size" value="-">
                                 @endif
 
                                 @if (! empty($product->sweetness_options))
@@ -92,16 +104,24 @@
                                         <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-charcoal/50">Tingkat Manis</p>
                                         <div class="flex flex-wrap gap-2">
                                             @foreach ($product->sweetness_options as $index => $sweetness)
-                                                <button
-                                                    type="button"
-                                                    disabled
-                                                    class="rounded-brand border px-3 py-1 text-sm font-medium {{ $index === 0 ? 'border-brand bg-brand text-white' : 'border-brand/30 bg-white text-charcoal' }}"
-                                                >
-                                                    {{ $sweetness }}
-                                                </button>
+                                                <label class="cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="sweetness"
+                                                        value="{{ $sweetness }}"
+                                                        class="peer hidden"
+                                                        {{ $index === 0 ? 'checked' : '' }}
+                                                        {{ $soldOut ? 'disabled' : '' }}
+                                                    >
+                                                    <span class="rounded-brand border border-brand/30 bg-white px-3 py-1 text-sm font-medium text-charcoal peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white">
+                                                        {{ $sweetness }}
+                                                    </span>
+                                                </label>
                                             @endforeach
                                         </div>
                                     </div>
+                                @else
+                                    <input type="hidden" name="sweetness" value="-">
                                 @endif
 
                                 <div class="mt-auto flex items-center justify-between pt-2">
@@ -118,15 +138,15 @@
                                             Habis
                                         </button>
                                     @else
-                                        <a
-                                            href="#"
+                                        <button
+                                            type="submit"
                                             class="rounded-brand bg-cta px-5 py-2 text-sm font-semibold text-white transition hover:bg-cta/90"
                                         >
                                             Tambah
-                                        </a>
+                                        </button>
                                     @endif
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     @endforeach
                 </div>
