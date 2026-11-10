@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MenuController;
@@ -21,3 +22,17 @@ Route::get('/checkout/confirmation/{orderNumber}', [CheckoutController::class, '
 
 Route::get('/orders/lookup', [OrderLookupController::class, 'show'])->name('orders.lookup');
 Route::post('/orders/lookup', [OrderLookupController::class, 'search'])->name('orders.lookup.search');
+
+// Admin login (unauthenticated) — guards the group below.
+Route::get('/admin/login', [AdminLoginController::class, 'create'])->name('admin.login');
+Route::post('/admin/login', [AdminLoginController::class, 'store'])->name('admin.login.store');
+
+// Admin panel — all /admin/* routes live inside this group behind the auth
+// middleware. Tasks 9–11 add their period/product/order routes here.
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
+
+    // Placeholder for Task 9 (PO period management). Replace with the real
+    // periods index route when that task is implemented.
+    Route::get('/periods', fn () => response('OK'))->name('periods');
+});
