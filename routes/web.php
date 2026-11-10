@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -32,7 +33,8 @@ Route::post('/admin/login', [AdminLoginController::class, 'store'])->name('admin
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
 
-    // Placeholder for Task 9 (PO period management). Replace with the real
-    // periods index route when that task is implemented.
-    Route::get('/periods', fn () => response('OK'))->name('periods');
+    Route::get('/periods', [PoPeriodController::class, 'index'])->name('periods');
+    Route::post('/periods', [PoPeriodController::class, 'store'])->name('periods.store');
+    Route::post('/periods/{period}/open', [PoPeriodController::class, 'open'])->name('periods.open');
+    Route::post('/periods/{period}/close', [PoPeriodController::class, 'close'])->name('periods.close');
 });
