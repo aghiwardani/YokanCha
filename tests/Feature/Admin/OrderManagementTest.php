@@ -82,6 +82,27 @@ class OrderManagementTest extends TestCase
         ]);
     }
 
+    public function test_update_status_rejects_cancelled_value(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
+
+        $response = $this->post("/admin/orders/{$order->id}/status", [
+            'order_status' => 'cancelled',
+        ]);
+
+        $response->assertSessionHasErrors('order_status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'order_status' => 'new',
+        ]);
+
+        // Quota must remain reserved since the order was not actually cancelled.
+        $this->assertSame(3, $ppp->fresh()->ordered_qty);
+    }
+
     public function test_cancel_releases_quota(): void
     {
         $this->actingAs(User::factory()->create());

@@ -56,7 +56,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $validated = $request->validate([
-            'order_status' => ['required', 'in:new,diproses,siap_diambil,selesai,cancelled'],
+            'order_status' => ['required', 'in:new,diproses,siap_diambil,selesai'],
         ]);
 
         $order->update(['order_status' => $validated['order_status']]);
