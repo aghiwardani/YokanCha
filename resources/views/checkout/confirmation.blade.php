@@ -51,6 +51,10 @@
             <div class="mt-8 text-center">
                 <a href="{{ route('menu.index') }}" class="font-semibold text-brand underline">Kembali ke menu</a>
             </div>
+
+            <div class="mt-4 text-center">
+                <a href="{{ route('orders.lookup') }}" class="font-semibold text-brand underline">Cek status pesanan di sini</a>
+            </div>
         </div>
     </main>
 @endsection

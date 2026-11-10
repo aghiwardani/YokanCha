@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\PoPeriod;
 use App\Services\CartService;
 use App\Services\QuotaService;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,10 @@ class CheckoutController extends Controller
     public function show(): View|RedirectResponse
     {
         $lines = $this->cart->items();
+
+        if (! empty($lines)) {
+            $this->assertCartMatchesOpenPeriod($lines);
+        }
 
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
@@ -47,7 +52,9 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $poPeriodId = $lines[0]['po_period_product']->po_period_id;
+        $openPeriod = $this->assertCartMatchesOpenPeriod($lines);
+
+        $poPeriodId = $openPeriod->id;
 
         $order = DB::transaction(function () use ($data, $lines, $poPeriodId) {
             foreach ($lines as $line) {
@@ -97,6 +104,32 @@ class CheckoutController extends Controller
             'order' => $order,
             'total' => $total,
         ]);
+    }
+
+    /**
+     * Ensure the batch (PO period) the cart's items belong to is still the
+     * currently-open one. Rejects if the period has since closed, or if any
+     * cart line belongs to a period other than the one currently open.
+     */
+    private function assertCartMatchesOpenPeriod(array $lines): PoPeriod
+    {
+        $openPeriod = PoPeriod::currentlyOpen();
+
+        if (! $openPeriod) {
+            throw ValidationException::withMessages([
+                'cart' => 'Batch pemesanan sudah ditutup. Silakan kembali ke menu untuk melihat batch terbaru.',
+            ]);
+        }
+
+        foreach ($lines as $line) {
+            if ((int) $line['po_period_product']->po_period_id !== (int) $openPeriod->id) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Batch pemesanan untuk item di keranjangmu sudah ditutup. Silakan kembali ke menu untuk melihat batch terbaru.',
+                ]);
+            }
+        }
+
+        return $openPeriod;
     }
 
     private function generateOrderNumber(int $poPeriodId): string

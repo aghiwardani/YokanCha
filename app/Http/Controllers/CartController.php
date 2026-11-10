@@ -44,6 +44,17 @@ class CartController extends Controller
         ]);
     }
 
+    public function update(Request $request, string $lineKey): RedirectResponse
+    {
+        $data = $request->validate([
+            'qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $this->cart->update($lineKey, (int) $data['qty']);
+
+        return redirect()->route('cart.show');
+    }
+
     public function remove(string $lineKey): RedirectResponse
     {
         $this->cart->remove($lineKey);

@@ -121,6 +121,50 @@ class OrderManagementTest extends TestCase
         $this->assertSame(0, $ppp->fresh()->ordered_qty);
     }
 
+    public function test_cancelling_a_completed_order_does_not_release_quota(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
+        $order->update(['order_status' => 'selesai']);
+
+        $response = $this->post("/admin/orders/{$order->id}/cancel");
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'order_status' => 'selesai',
+        ]);
+
+        // Quota must remain reserved; a completed order cannot be cancelled.
+        $this->assertSame(3, $ppp->fresh()->ordered_qty);
+    }
+
+    public function test_update_status_rejects_transition_away_from_cancelled(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
+
+        $this->post("/admin/orders/{$order->id}/cancel");
+        $this->assertSame(0, $ppp->fresh()->ordered_qty);
+
+        $response = $this->post("/admin/orders/{$order->id}/status", [
+            'order_status' => 'diproses',
+        ]);
+
+        $response->assertSessionHasErrors('order_status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'order_status' => 'cancelled',
+        ]);
+
+        // Quota must stay released; the order must not come back to life.
+        $this->assertSame(0, $ppp->fresh()->ordered_qty);
+    }
+
     public function test_cancelling_already_cancelled_order_does_not_double_release_quota(): void
     {
         $this->actingAs(User::factory()->create());

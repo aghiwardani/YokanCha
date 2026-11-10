@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Detail Pesanan - YokanCha')
 
-@section('content')
+@section('admin-content')
 <div class="min-h-screen bg-oat py-12 px-4">
     <div class="max-w-3xl mx-auto space-y-8">
         <div class="flex items-center justify-between">
@@ -97,15 +97,17 @@
                         </button>
                     </form>
 
-                    <form action="{{ route('admin.orders.cancel', $order) }}" method="POST">
-                        @csrf
-                        <button
-                            type="submit"
-                            class="px-4 py-2 bg-charcoal text-surface font-semibold rounded-brand hover:bg-opacity-90 transition duration-200"
-                        >
-                            Batalkan Pesanan
-                        </button>
-                    </form>
+                    @if ($order->order_status !== 'selesai')
+                        <form action="{{ route('admin.orders.cancel', $order) }}" method="POST">
+                            @csrf
+                            <button
+                                type="submit"
+                                class="px-4 py-2 bg-charcoal text-surface font-semibold rounded-brand hover:bg-opacity-90 transition duration-200"
+                            >
+                                Batalkan Pesanan
+                            </button>
+                        </form>
+                    @endif
                 @endif
             </div>
         </div>

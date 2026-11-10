@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Pesanan - YokanCha')
 
-@section('content')
+@section('admin-content')
 <div class="min-h-screen bg-oat py-12 px-4">
     <div class="max-w-5xl mx-auto space-y-8">
         <div class="flex items-center justify-between">

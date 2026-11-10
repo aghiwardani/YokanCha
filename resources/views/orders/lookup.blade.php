@@ -75,13 +75,26 @@
                             <!-- Payment Status -->
                             <div class="bg-oat rounded-brand p-4">
                                 <p class="text-sm font-semibold text-charcoal opacity-75 mb-1">Status Pembayaran</p>
-                                <p class="text-lg font-bold text-brand">{{ $order->payment_status }}</p>
+                                <p class="text-lg font-bold text-brand">
+                                    {{ [
+                                        'unpaid' => 'Belum Bayar',
+                                        'paid' => 'Sudah Bayar',
+                                    ][$order->payment_status] ?? $order->payment_status }}
+                                </p>
                             </div>
 
                             <!-- Order Status -->
                             <div class="bg-oat rounded-brand p-4">
                                 <p class="text-sm font-semibold text-charcoal opacity-75 mb-1">Status Pesanan</p>
-                                <p class="text-lg font-bold text-brand">{{ $order->order_status }}</p>
+                                <p class="text-lg font-bold text-brand">
+                                    {{ [
+                                        'new' => 'Baru',
+                                        'diproses' => 'Diproses',
+                                        'siap_diambil' => 'Siap Diambil',
+                                        'selesai' => 'Selesai',
+                                        'cancelled' => 'Dibatalkan',
+                                    ][$order->order_status] ?? $order->order_status }}
+                                </p>
                             </div>
                         </div>
                     </div>

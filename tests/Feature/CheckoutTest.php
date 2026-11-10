@@ -101,6 +101,72 @@ class CheckoutTest extends TestCase
         });
     }
 
+    public function test_rejects_checkout_when_period_closed_after_adding_to_cart(): void
+    {
+        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 0);
+
+        $this->addToCart($ppp, 2);
+
+        // Admin closes the period after the customer already added to cart.
+        $ppp->poPeriod->update(['status' => 'closed']);
+
+        $response = $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+        $this->assertSame(0, $ppp->fresh()->ordered_qty);
+
+        $response->assertSessionHasErrors('cart');
+    }
+
+    public function test_rejects_checkout_when_cart_line_belongs_to_non_open_period(): void
+    {
+        // Open period (currently open) and a separate, non-open period whose
+        // product line will sit stale in the cart.
+        $openPeriod = PoPeriod::create([
+            'name' => 'PO Batch 2',
+            'opens_at' => now()->subDay(),
+            'closes_at' => now()->addDay(),
+            'status' => 'open',
+        ]);
+
+        $staleProduct = Product::create([
+            'category' => 'minuman',
+            'name' => 'Houjicha Latte',
+            'description' => 'Houjicha hangat.',
+            'base_price' => 22000,
+            'size_options' => ['250ml'],
+            'sweetness_options' => ['Normal'],
+        ]);
+
+        $stalePeriod = PoPeriod::create([
+            'name' => 'PO Batch Lama',
+            'opens_at' => now()->subDays(5),
+            'closes_at' => now()->subDays(2),
+            'status' => 'closed',
+        ]);
+
+        $stalePpp = PoPeriodProduct::create([
+            'po_period_id' => $stalePeriod->id,
+            'product_id' => $staleProduct->id,
+            'quota' => 5,
+            'ordered_qty' => 0,
+        ]);
+
+        $this->addToCart($stalePpp, 1);
+
+        $response = $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $this->assertDatabaseCount('orders', 0);
+        $response->assertSessionHasErrors('cart');
+    }
+
     public function test_requires_name_and_whatsapp_number(): void
     {
         $ppp = $this->makePoPeriodProduct();

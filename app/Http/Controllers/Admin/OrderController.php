@@ -9,6 +9,8 @@ use App\Models\PoPeriodProduct;
 use App\Services\QuotaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OrderController extends Controller
@@ -59,6 +61,15 @@ class OrderController extends Controller
             'order_status' => ['required', 'in:new,diproses,siap_diambil,selesai'],
         ]);
 
+        // A cancelled order's quota has already been released. Transitioning
+        // it to any other status would make it "live" again without
+        // re-reserving quota, so cancelled orders can never be revived here.
+        if ($order->order_status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'order_status' => 'Pesanan yang sudah dibatalkan tidak dapat diubah statusnya.',
+            ]);
+        }
+
         $order->update(['order_status' => $validated['order_status']]);
 
         return redirect()->route('admin.orders.show', $order)
@@ -67,26 +78,37 @@ class OrderController extends Controller
 
     public function cancel(Order $order): RedirectResponse
     {
-        if ($order->order_status === 'cancelled') {
-            return redirect()->route('admin.orders.show', $order)
-                ->with('status', 'Pesanan sudah dibatalkan sebelumnya.');
-        }
+        $wasCancelled = DB::transaction(function () use ($order) {
+            // Re-fetch and lock the order row so two near-simultaneous cancel
+            // requests can't both pass the guard and both release quota.
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
-        $order->load('items');
-
-        foreach ($order->items as $item) {
-            $ppp = PoPeriodProduct::where('po_period_id', $order->po_period_id)
-                ->where('product_id', $item->product_id)
-                ->first();
-
-            if ($ppp) {
-                $this->quotaService->release($ppp, $item->qty);
+            if (in_array($locked->order_status, ['cancelled', 'selesai'], true)) {
+                return false;
             }
-        }
 
-        $order->update(['order_status' => 'cancelled']);
+            $locked->load('items');
+
+            foreach ($locked->items as $item) {
+                $ppp = PoPeriodProduct::where('po_period_id', $locked->po_period_id)
+                    ->where('product_id', $item->product_id)
+                    ->first();
+
+                if ($ppp) {
+                    $this->quotaService->release($ppp, $item->qty);
+                }
+            }
+
+            $locked->update(['order_status' => 'cancelled']);
+
+            return true;
+        });
+
+        $message = $wasCancelled
+            ? 'Pesanan dibatalkan dan kuota dikembalikan.'
+            : 'Pesanan tidak dapat dibatalkan (sudah dibatalkan atau selesai).';
 
         return redirect()->route('admin.orders.show', $order)
-            ->with('status', 'Pesanan dibatalkan dan kuota dikembalikan.');
+            ->with('status', $message);
     }
 }

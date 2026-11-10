@@ -57,6 +57,23 @@ class CartService
         return $lines;
     }
 
+    public function update(string $lineKey, int $qty): void
+    {
+        $cart = session(self::SESSION_KEY, []);
+
+        if (! isset($cart[$lineKey])) {
+            return;
+        }
+
+        if ($qty <= 0) {
+            unset($cart[$lineKey]);
+        } else {
+            $cart[$lineKey]['qty'] = $qty;
+        }
+
+        session([self::SESSION_KEY => $cart]);
+    }
+
     public function remove(string $lineKey): void
     {
         $cart = session(self::SESSION_KEY, []);

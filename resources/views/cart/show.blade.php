@@ -34,9 +34,24 @@
                                 <p class="mt-1 text-sm text-charcoal/60">
                                     {{ $line['size'] }} &middot; {{ $line['sweetness'] }}
                                 </p>
-                                <p class="mt-1 text-sm text-charcoal/70">
-                                    Jumlah: {{ $line['qty'] }}
-                                </p>
+                                <form method="POST" action="{{ route('cart.update', $line['line_key']) }}" class="mt-2 flex items-center gap-2">
+                                    @csrf
+                                    @method('PATCH')
+                                    <label class="text-sm text-charcoal/70">Jumlah:</label>
+                                    <input
+                                        type="number"
+                                        name="qty"
+                                        min="0"
+                                        value="{{ $line['qty'] }}"
+                                        class="w-16 rounded-brand border border-charcoal/20 px-2 py-1 text-sm text-charcoal focus:border-brand focus:outline-none"
+                                    />
+                                    <button
+                                        type="submit"
+                                        class="rounded-brand border border-charcoal/20 px-3 py-1 text-sm font-semibold text-charcoal/70 transition hover:border-brand hover:text-brand"
+                                    >
+                                        Update
+                                    </button>
+                                </form>
                             </div>
 
                             <div class="flex flex-col items-end gap-3">
@@ -68,7 +83,7 @@
                     </div>
 
                     <a
-                        href="{{ Route::has('checkout.show') ? route('checkout.show') : '#' }}"
+                        href="{{ route('checkout.show') }}"
                         class="w-full rounded-brand bg-cta px-5 py-3 text-center text-base font-semibold text-white transition hover:bg-cta/90"
                     >
                         Lanjut ke Checkout

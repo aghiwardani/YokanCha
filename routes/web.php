@@ -14,6 +14,9 @@ Route::get('/', [MenuController::class, 'index'])->name('menu.index');
 
 Route::post('/cart', [CartController::class, 'add'])->name('cart.add');
 Route::get('/cart', [CartController::class, 'show'])->name('cart.show');
+Route::patch('/cart/{lineKey}', [CartController::class, 'update'])
+    ->where('lineKey', '.*')
+    ->name('cart.update');
 Route::delete('/cart/{lineKey}', [CartController::class, 'remove'])
     ->where('lineKey', '.*')
     ->name('cart.remove');
@@ -34,6 +37,8 @@ Route::post('/admin/login', [AdminLoginController::class, 'store'])->name('admin
 // middleware. Tasks 9–11 add their period/product/order routes here.
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
+
+    Route::get('/', fn () => redirect()->route('admin.periods'))->name('home');
 
     Route::get('/periods', [PoPeriodController::class, 'index'])->name('periods');
     Route::post('/periods', [PoPeriodController::class, 'store'])->name('periods.store');

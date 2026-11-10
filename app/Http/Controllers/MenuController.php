@@ -10,14 +10,7 @@ class MenuController extends Controller
 {
     public function index(): View
     {
-        $period = PoPeriod::where('status', 'open')
-            ->where(function ($query) {
-                $query->whereNull('opens_at')->orWhere('opens_at', '<=', now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('closes_at')->orWhere('closes_at', '>=', now());
-            })
-            ->first();
+        $period = PoPeriod::currentlyOpen();
 
         $items = collect();
 

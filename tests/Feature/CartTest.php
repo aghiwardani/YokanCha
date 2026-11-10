@@ -80,6 +80,48 @@ class CartTest extends TestCase
         $response->assertSee('100.000');
     }
 
+    public function test_update_line_quantity(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+
+        $this->post('/cart', [
+            'po_period_product_id' => $ppp->id,
+            'qty' => 2,
+            'size' => '250ml',
+            'sweetness' => 'Normal',
+        ]);
+
+        $lineKey = "{$ppp->id}|250ml|Normal";
+
+        $this->patch("/cart/{$lineKey}", ['qty' => 5])->assertRedirect();
+
+        $response = $this->get('/cart');
+        $response->assertStatus(200);
+        $response->assertSee('5');
+        // subtotal = 25000 * 5 = 125000
+        $response->assertSee('125.000');
+    }
+
+    public function test_update_line_quantity_to_zero_removes_it(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+
+        $this->post('/cart', [
+            'po_period_product_id' => $ppp->id,
+            'qty' => 2,
+            'size' => '250ml',
+            'sweetness' => 'Normal',
+        ]);
+
+        $lineKey = "{$ppp->id}|250ml|Normal";
+
+        $this->patch("/cart/{$lineKey}", ['qty' => 0])->assertRedirect();
+
+        $response = $this->get('/cart');
+        $response->assertStatus(200);
+        $response->assertDontSee('Matcha Latte');
+    }
+
     public function test_remove_line_from_cart(): void
     {
         $ppp = $this->makePoPeriodProduct();
