@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\PoPeriodController;
+use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -37,4 +38,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/periods', [PoPeriodController::class, 'store'])->name('periods.store');
     Route::post('/periods/{period}/open', [PoPeriodController::class, 'open'])->name('periods.open');
     Route::post('/periods/{period}/close', [PoPeriodController::class, 'close'])->name('periods.close');
+
+    Route::get('/products', [ProductController::class, 'index'])->name('products');
+    Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
+    Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+    Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
+    Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+    Route::post('/products/{product}/quota', [ProductController::class, 'setQuota'])->name('products.quota');
 });
