@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MenuController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,3 +12,8 @@ Route::get('/cart', [CartController::class, 'show'])->name('cart.show');
 Route::delete('/cart/{lineKey}', [CartController::class, 'remove'])
     ->where('lineKey', '.*')
     ->name('cart.remove');
+
+Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+Route::get('/checkout/confirmation/{orderNumber}', [CheckoutController::class, 'confirmation'])
+    ->name('checkout.confirmation');
