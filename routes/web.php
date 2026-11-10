@@ -3,6 +3,7 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OrderLookupController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [MenuController::class, 'index'])->name('menu.index');
@@ -17,3 +18,6 @@ Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.sho
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/checkout/confirmation/{orderNumber}', [CheckoutController::class, 'confirmation'])
     ->name('checkout.confirmation');
+
+Route::get('/orders/lookup', [OrderLookupController::class, 'show'])->name('orders.lookup');
+Route::post('/orders/lookup', [OrderLookupController::class, 'search'])->name('orders.lookup.search');
