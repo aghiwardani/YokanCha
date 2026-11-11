@@ -79,12 +79,88 @@ class CheckoutTest extends TestCase
         $this->assertSame(2, $ppp->fresh()->ordered_qty);
     }
 
+    public function test_rejects_whatsapp_number_that_is_not_a_phone_number(): void
+    {
+        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $this->addToCart($ppp, 1);
+
+        $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => 'abc',
+        ])->assertSessionHasErrors('customer_whatsapp');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_confirmation_shows_payment_settings_and_whatsapp_link(): void
+    {
+        config([
+            'yokancha.whatsapp' => '6289900001111',
+            'yokancha.payment.bank' => 'Bank Contoh',
+            'yokancha.payment.account_number' => '9876543210',
+            'yokancha.payment.account_name' => 'Pemilik YokanCha',
+        ]);
+
+        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $this->addToCart($ppp, 2);
+
+        $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $order = Order::first();
+
+        $response = $this->get(route('checkout.confirmation', $order->order_number));
+
+        $response->assertOk()
+            ->assertSee('Bank Contoh')
+            ->assertSee('9876543210')
+            ->assertSee('Pemilik YokanCha')
+            ->assertSee('https://wa.me/6289900001111?text=', false);
+
+        // The prefilled message carries the order number, items, and total.
+        preg_match('#https://wa\.me/6289900001111\?text=([^"]+)#', $response->getContent(), $match);
+        $message = rawurldecode(html_entity_decode($match[1]));
+
+        $this->assertStringContainsString($order->order_number, $message);
+        $this->assertStringContainsString('2x Matcha Latte', $message);
+        $this->assertStringContainsString('Rp50.000', $message);
+    }
+
+    public function test_order_item_uses_price_of_selected_size(): void
+    {
+        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $ppp->product->update(['size_prices' => ['250ml' => 32000, '1L' => 110000]]);
+
+        $this->post('/cart', [
+            'po_period_product_id' => $ppp->id,
+            'qty' => 2,
+            'size' => '1L',
+            'sweetness' => 'Normal',
+        ]);
+
+        $this->get('/cart')->assertSee('220.000');
+
+        $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $item = Order::first()->items()->first();
+        $this->assertSame('1L', $item->size);
+        $this->assertSame(110000, $item->unit_price);
+    }
+
     public function test_rejects_checkout_when_quota_insufficient_at_submit_time(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 4);
+        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 0);
 
-        // Cart line requests more than the remaining quota (1).
         $this->addToCart($ppp, 3);
+
+        // Other customers buy most of the stock before this one checks out,
+        // so the cart line now asks for more than the remaining quota (1).
+        $ppp->update(['ordered_qty' => 4]);
 
         $response = $this->post('/checkout', [
             'customer_name' => 'Budi Santoso',

@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\PoPeriod;
 use App\Services\CartService;
 use App\Services\QuotaService;
+use App\Support\Phone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,14 +42,23 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'customer_name' => ['required', 'string', 'max:255'],
-            'customer_whatsapp' => ['required', 'string', 'max:30'],
+            'customer_whatsapp' => [
+                'required',
+                'string',
+                'max:30',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! Phone::looksValid((string) $value)) {
+                        $fail('Nomor WhatsApp belum benar. Contoh: 081234567890.');
+                    }
+                },
+            ],
         ]);
 
         $lines = $this->cart->items();
 
         if (empty($lines)) {
             throw ValidationException::withMessages([
-                'cart' => 'Keranjang kamu kosong.',
+                'cart' => 'Keranjangmu masih kosong.',
             ]);
         }
 
@@ -62,7 +72,7 @@ class CheckoutController extends Controller
 
                 if (! $this->quota->reserve($ppp, $line['qty'])) {
                     throw ValidationException::withMessages([
-                        'quota' => "Stok untuk {$line['product']->name} tidak cukup. Silakan kurangi jumlah atau hapus item dari keranjang.",
+                        'quota' => "Stok {$line['product']->name} tidak cukup. Kurangi jumlahnya atau hapus dari keranjang.",
                     ]);
                 }
             }
@@ -80,7 +90,7 @@ class CheckoutController extends Controller
                     'size' => $line['size'],
                     'sweetness' => $line['sweetness'],
                     'qty' => $line['qty'],
-                    'unit_price' => $line['product']->base_price,
+                    'unit_price' => $line['unit_price'],
                 ]);
             }
 
@@ -103,7 +113,42 @@ class CheckoutController extends Controller
         return view('checkout.confirmation', [
             'order' => $order,
             'total' => $total,
+            'whatsappUrl' => 'https://wa.me/'.Phone::normalize(config('yokancha.whatsapp'))
+                .'?text='.rawurlencode($this->whatsappMessage($order, $total)),
         ]);
+    }
+
+    /**
+     * Prefilled order message for the seller (Figma "Cara pesan" step 03:
+     * "Pesan rapi terisi otomatis. Tinggal tekan kirim.").
+     */
+    private function whatsappMessage(Order $order, int $total): string
+    {
+        $rupiah = fn (int $amount) => 'Rp'.number_format($amount, 0, ',', '.');
+
+        $lines = [
+            'Halo, aku mau konfirmasi pesanan PO YokanCha.',
+            '',
+            "No. pesanan: {$order->order_number}",
+            "Nama: {$order->customer_name}",
+            "WhatsApp: {$order->customer_whatsapp}",
+            '',
+        ];
+
+        foreach ($order->items as $item) {
+            $options = collect([$item->size, $item->sweetness])
+                ->filter(fn ($value) => $value && $value !== '-')
+                ->implode(', ');
+
+            $lines[] = "- {$item->qty}x {$item->product->name}"
+                .($options ? " ({$options})" : '')
+                .' = '.$rupiah($item->qty * $item->unit_price);
+        }
+
+        $lines[] = '';
+        $lines[] = 'Total: '.$rupiah($total);
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -117,14 +162,14 @@ class CheckoutController extends Controller
 
         if (! $openPeriod) {
             throw ValidationException::withMessages([
-                'cart' => 'Batch pemesanan sudah ditutup. Silakan kembali ke menu untuk melihat batch terbaru.',
+                'cart' => 'Pre-order batch ini sudah tutup.',
             ]);
         }
 
         foreach ($lines as $line) {
             if ((int) $line['po_period_product']->po_period_id !== (int) $openPeriod->id) {
                 throw ValidationException::withMessages([
-                    'cart' => 'Batch pemesanan untuk item di keranjangmu sudah ditutup. Silakan kembali ke menu untuk melihat batch terbaru.',
+                    'cart' => 'Ada item dari batch yang sudah tutup. Hapus dulu, lalu pilih lagi dari menu sekarang.',
                 ]);
             }
         }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PoPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PoPeriodController extends Controller
@@ -24,7 +25,7 @@ class PoPeriodController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'opens_at' => ['nullable', 'date'],
-            'closes_at' => ['nullable', 'date'],
+            'closes_at' => ['nullable', 'date', 'after:opens_at'],
         ]);
 
         PoPeriod::create([
@@ -39,9 +40,16 @@ class PoPeriodController extends Controller
 
     public function open(PoPeriod $period): RedirectResponse
     {
-        $period->update(['status' => 'open']);
+        // Only one batch takes orders at a time: opening this one closes any other.
+        DB::transaction(function () use ($period) {
+            PoPeriod::where('status', 'open')
+                ->whereKeyNot($period->getKey())
+                ->update(['status' => 'closed']);
 
-        return redirect()->route('admin.periods')->with('status', 'Periode dibuka.');
+            $period->update(['status' => 'open']);
+        });
+
+        return redirect()->route('admin.periods')->with('status', 'Periode dibuka. Periode lain yang masih terbuka otomatis ditutup.');
     }
 
     public function close(PoPeriod $period): RedirectResponse

@@ -2,97 +2,79 @@
 
 @section('title', 'Checkout - YokanCha')
 
+@php($payment = config('yokancha.payment'))
+
 @section('content')
-    <main class="min-h-screen bg-oat">
-        <div class="mx-auto max-w-3xl px-6 py-12">
-            <div class="border-b border-brand/10 pb-6">
-                <h2 class="text-3xl font-bold text-charcoal">Checkout</h2>
-                <p class="mt-2 text-charcoal/70">
-                    Lengkapi data diri untuk menyelesaikan pesananmu.
-                </p>
-            </div>
-
-            @if ($errors->any())
-                <div class="mt-6 rounded-brand border border-cta/40 bg-cta/10 p-4 text-sm text-cta">
-                    <ul class="list-inside list-disc space-y-1">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            @if (empty($lines))
-                <div class="mt-16 flex flex-col items-center justify-center rounded-brand border-2 border-dashed border-brand/30 bg-white px-8 py-16 text-center">
-                    <p class="text-lg font-semibold text-charcoal">Keranjang masih kosong.</p>
-                    <p class="mt-2 text-charcoal/60">
-                        <a href="{{ route('menu.index') }}" class="font-semibold text-brand underline">Kembali ke menu</a>
-                        untuk mulai memilih minuman.
-                    </p>
-                </div>
-            @else
-                <div class="mt-8 rounded-brand bg-white p-6 shadow-sm">
-                    <h3 class="text-lg font-bold text-charcoal">Ringkasan Pesanan</h3>
-
-                    <div class="mt-4 flex flex-col gap-3">
-                        @foreach ($lines as $line)
-                            <div class="flex items-center justify-between gap-4 border-b border-brand/10 pb-3">
-                                <div>
-                                    <p class="font-semibold text-charcoal">{{ $line['product']->name }}</p>
-                                    <p class="text-sm text-charcoal/60">
-                                        {{ $line['size'] }} &middot; {{ $line['sweetness'] }} &middot; Jumlah: {{ $line['qty'] }}
-                                    </p>
-                                </div>
-                                <span class="font-semibold text-charcoal">
-                                    Rp {{ number_format($line['line_total'], 0, ',', '.') }}
-                                </span>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div class="mt-4 flex items-center justify-between">
-                        <span class="text-lg font-semibold text-charcoal">Subtotal</span>
-                        <span class="text-xl font-bold text-charcoal">
-                            Rp {{ number_format($subtotal, 0, ',', '.') }}
-                        </span>
-                    </div>
-                </div>
-
-                <form method="POST" action="{{ route('checkout.store') }}" class="mt-8 flex flex-col gap-4 rounded-brand bg-surface p-6 shadow-sm">
-                    @csrf
-
-                    <div>
-                        <label for="customer_name" class="block text-sm font-semibold text-charcoal">Nama</label>
-                        <input
-                            type="text"
-                            id="customer_name"
-                            name="customer_name"
-                            value="{{ old('customer_name') }}"
-                            class="mt-1 w-full rounded-brand border border-charcoal/20 px-4 py-2 text-charcoal focus:border-brand focus:outline-none"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label for="customer_whatsapp" class="block text-sm font-semibold text-charcoal">Nomor WhatsApp</label>
-                        <input
-                            type="text"
-                            id="customer_whatsapp"
-                            name="customer_whatsapp"
-                            value="{{ old('customer_whatsapp') }}"
-                            class="mt-1 w-full rounded-brand border border-charcoal/20 px-4 py-2 text-charcoal focus:border-brand focus:outline-none"
-                            required
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="mt-2 w-full rounded-brand bg-cta px-5 py-3 text-center text-base font-semibold text-white transition hover:bg-cta/90"
-                    >
-                        Konfirmasi Pesanan
-                    </button>
-                </form>
-            @endif
+    <main class="yc-container flex max-w-[800px] flex-col gap-6 py-10 lg:py-16">
+        <div class="flex flex-col gap-3">
+            <h1 class="yc-h2">Checkout</h1>
+            <p class="text-base leading-[26px] text-muted">Cukup isi nama dan nomor WhatsApp.</p>
         </div>
+
+        @include('partials.errors')
+
+        @if (empty($lines))
+            <div class="flex flex-col items-center gap-4 rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
+                <p class="font-display text-[25px] leading-7 text-charcoal">Keranjangmu masih kosong.</p>
+                <a href="{{ route('menu.index') }}#menu" class="yc-btn-cta">Lihat menu</a>
+            </div>
+        @else
+            <section class="flex flex-col rounded-card border border-charcoal bg-surface p-5 lg:p-6">
+                <h2 class="mb-2 font-display text-[25px] leading-7 text-charcoal">Ringkasan pesanan</h2>
+
+                @foreach ($lines as $line)
+                    <div class="flex items-start justify-between gap-4 border-t border-line py-3">
+                        <div>
+                            <p class="font-bold text-charcoal">{{ $line['product']->name }}</p>
+                            <p class="text-sm leading-[22px] text-muted">{{ $line['size'] }} · {{ $line['sweetness'] }} · {{ $line['qty'] }} botol</p>
+                        </div>
+                        <span class="whitespace-nowrap font-bold text-charcoal">Rp{{ number_format($line['line_total'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+
+                <div class="flex items-center justify-between border-t border-line pt-4">
+                    <span class="font-bold text-charcoal">Total</span>
+                    <span class="text-xl font-extrabold leading-5 tracking-[-0.2px] text-charcoal">Rp{{ number_format($subtotal, 0, ',', '.') }}</span>
+                </div>
+            </section>
+
+            <form method="POST" action="{{ route('checkout.store') }}" class="flex flex-col gap-5 rounded-card border border-charcoal bg-surface p-5 lg:p-6">
+                @csrf
+
+                <div class="flex flex-col gap-2">
+                    <label for="customer_name" class="yc-mono text-muted">Nama</label>
+                    <input
+                        type="text"
+                        id="customer_name"
+                        name="customer_name"
+                        value="{{ old('customer_name') }}"
+                        autocomplete="name"
+                        required
+                        class="rounded-brand border border-charcoal bg-surface px-4 py-3 text-base text-charcoal focus:outline focus:outline-2 focus:outline-brand"
+                    />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label for="customer_whatsapp" class="yc-mono text-muted">Nomor WhatsApp</label>
+                    <input
+                        type="tel"
+                        id="customer_whatsapp"
+                        name="customer_whatsapp"
+                        value="{{ old('customer_whatsapp') }}"
+                        placeholder="081234567890"
+                        autocomplete="tel"
+                        inputmode="tel"
+                        required
+                        class="rounded-brand border border-charcoal bg-surface px-4 py-3 text-base text-charcoal focus:outline focus:outline-2 focus:outline-brand"
+                    />
+                </div>
+
+                <p class="rounded-brand bg-sage-soft px-4 py-3 text-sm leading-[22px] text-charcoal">
+                    Pembayaran lewat transfer ke {{ $payment['bank'] }} {{ $payment['account_number'] }} a.n. {{ $payment['account_name'] }}. Detailnya muncul lagi setelah pesanan dibuat.
+                </p>
+
+                <button type="submit" class="yc-btn-cta self-start">Buat pesanan</button>
+            </form>
+        @endif
     </main>
 @endsection

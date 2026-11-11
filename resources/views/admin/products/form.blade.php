@@ -85,11 +85,11 @@
                         type="text"
                         id="size_options"
                         name="size_options"
-                        placeholder="Contoh: 250ml, 1L"
-                        value="{{ old('size_options', implode(', ', $product->size_options ?? [])) }}"
+                        placeholder="Contoh: 250 ml=32000, 500 ml=60000, 1 liter=110000"
+                        value="{{ old('size_options', collect($product->size_options ?? [])->map(fn ($size) => isset(($product->size_prices ?? [])[$size]) ? $size.'='.$product->size_prices[$size] : $size)->implode(', ')) }}"
                         class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('size_options') border-red-500 @enderror"
                     />
-                    <p class="text-xs text-charcoal opacity-75 mt-1">Pisahkan dengan koma.</p>
+                    <p class="text-xs text-charcoal opacity-75 mt-1">Pisahkan dengan koma. Tulis harga per ukuran dengan "=", mis. <code>1 liter=110000</code>. Ukuran tanpa harga memakai Harga Dasar.</p>
                 </div>
 
                 <div>
@@ -103,6 +103,60 @@
                         class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('sweetness_options') border-red-500 @enderror"
                     />
                     <p class="text-xs text-charcoal opacity-75 mt-1">Pisahkan dengan koma.</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="tag" class="block text-sm font-semibold text-charcoal mb-2">Label Kartu</label>
+                        <input
+                            type="text"
+                            id="tag"
+                            name="tag"
+                            placeholder="Contoh: Maple Signature"
+                            value="{{ old('tag', $product->tag) }}"
+                            class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('tag') border-red-500 @enderror"
+                        />
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Opsional. Tampil di pojok foto produk.</p>
+                    </div>
+
+                    <div>
+                        <label for="sort_order" class="block text-sm font-semibold text-charcoal mb-2">Urutan Tampil</label>
+                        <input
+                            type="number"
+                            id="sort_order"
+                            name="sort_order"
+                            min="0"
+                            value="{{ old('sort_order', $product->sort_order ?? 0) }}"
+                            class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('sort_order') border-red-500 @enderror"
+                        />
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Urutan terkecil tampil pertama sebagai kartu lebar.</p>
+                    </div>
+
+                    <div>
+                        <label for="tone" class="block text-sm font-semibold text-charcoal mb-2">Warna Latar Kartu</label>
+                        <select
+                            id="tone"
+                            name="tone"
+                            class="w-full px-4 py-3 border-2 border-brand rounded-brand bg-white focus:outline-none focus:ring-2 focus:ring-cta"
+                        >
+                            @foreach (['sage' => 'Sage (hijau)', 'amber' => 'Amber (peach)', 'oat' => 'Oat (krem)'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('tone', $product->tone ?? 'sage') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="bottle_style" class="block text-sm font-semibold text-charcoal mb-2">Ilustrasi Botol</label>
+                        <select
+                            id="bottle_style"
+                            name="bottle_style"
+                            class="w-full px-4 py-3 border-2 border-brand rounded-brand bg-white focus:outline-none focus:ring-2 focus:ring-cta"
+                        >
+                            @foreach (['klasik' => 'Matcha latte', 'maple' => 'Maple (lapisan karamel)', 'oat' => 'Oat (hijau pucat)', 'murni' => 'Matcha murni', 'strawberry' => 'Strawberry (lapisan merah)'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('bottle_style', $product->bottle_style ?? 'klasik') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
 
                 <button

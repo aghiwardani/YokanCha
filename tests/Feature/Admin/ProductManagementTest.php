@@ -15,7 +15,7 @@ class ProductManagementTest extends TestCase
 
     public function test_admin_can_create_product(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $response = $this->post('/admin/products', [
             'name' => 'Es Teh Lemon',
@@ -38,9 +38,34 @@ class ProductManagementTest extends TestCase
         $this->assertSame(['Normal', 'Kurang Gula'], $product->sweetness_options);
     }
 
+    public function test_admin_can_set_price_per_size_and_display_fields(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->post('/admin/products', [
+            'name' => 'Maple Matcha Latte',
+            'base_price' => 32000,
+            'size_options' => '250 ml=32000, 1 liter=110000',
+            'sweetness_options' => 'Manis normal, Less sugar',
+            'tag' => 'Maple Signature',
+            'tone' => 'amber',
+            'bottle_style' => 'maple',
+            'sort_order' => 1,
+        ])->assertRedirect('/admin/products');
+
+        $product = Product::where('name', 'Maple Matcha Latte')->first();
+        $this->assertSame(['250 ml', '1 liter'], $product->size_options);
+        $this->assertSame(['250 ml' => 32000, '1 liter' => 110000], $product->size_prices);
+        $this->assertSame(110000, $product->priceFor('1 liter'));
+        $this->assertSame('Maple Signature', $product->tag);
+        $this->assertSame('amber', $product->tone);
+        $this->assertSame('maple', $product->bottle_style);
+        $this->assertSame(1, $product->sort_order);
+    }
+
     public function test_admin_can_set_quota_for_period(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $product = Product::factory()->create();
         $period = PoPeriod::factory()->create();
@@ -61,7 +86,7 @@ class ProductManagementTest extends TestCase
 
     public function test_admin_can_set_quota_upserts_without_touching_ordered_qty(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $product = Product::factory()->create();
         $period = PoPeriod::factory()->create();
@@ -94,7 +119,7 @@ class ProductManagementTest extends TestCase
 
     public function test_admin_can_edit_product(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $product = Product::factory()->create([
             'name' => 'Original Name',

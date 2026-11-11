@@ -1,60 +1,58 @@
 @extends('layouts.app')
 
-@section('title', 'Konfirmasi Pesanan - YokanCha')
+@section('title', 'Pesanan Diterima - YokanCha')
+
+@php($payment = config('yokancha.payment'))
 
 @section('content')
-    <main class="min-h-screen bg-oat">
-        <div class="mx-auto max-w-3xl px-6 py-12">
-            <div class="border-b border-brand/10 pb-6">
-                <h2 class="text-3xl font-bold text-charcoal">Pesanan Diterima</h2>
-                <p class="mt-2 text-charcoal/70">
-                    Terima kasih, {{ $order->customer_name }}! Simpan nomor pesananmu di bawah ini.
-                </p>
-            </div>
-
-            <div class="mt-8 rounded-brand bg-white p-6 shadow-sm">
-                <p class="text-sm font-semibold text-charcoal/60">Nomor Pesanan</p>
-                <p class="mt-1 text-2xl font-bold text-brand">{{ $order->order_number }}</p>
-
-                <h3 class="mt-6 text-lg font-bold text-charcoal">Ringkasan Pesanan</h3>
-                <div class="mt-4 flex flex-col gap-3">
-                    @foreach ($order->items as $item)
-                        <div class="flex items-center justify-between gap-4 border-b border-brand/10 pb-3">
-                            <div>
-                                <p class="font-semibold text-charcoal">{{ $item->product->name }}</p>
-                                <p class="text-sm text-charcoal/60">
-                                    {{ $item->size }} &middot; {{ $item->sweetness }} &middot; Jumlah: {{ $item->qty }}
-                                </p>
-                            </div>
-                            <span class="font-semibold text-charcoal">
-                                Rp {{ number_format($item->qty * $item->unit_price, 0, ',', '.') }}
-                            </span>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="mt-4 flex items-center justify-between">
-                    <span class="text-lg font-semibold text-charcoal">Total</span>
-                    <span class="text-xl font-bold text-charcoal">
-                        Rp {{ number_format($total, 0, ',', '.') }}
-                    </span>
-                </div>
-            </div>
-
-            <div class="mt-8 rounded-brand bg-surface p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-charcoal">Instruksi Pembayaran</h3>
-                <p class="mt-2 text-charcoal/70">
-                    Transfer ke BCA 1234567890 a.n. YokanCha, lalu konfirmasi via WhatsApp.
-                </p>
-            </div>
-
-            <div class="mt-8 text-center">
-                <a href="{{ route('menu.index') }}" class="font-semibold text-brand underline">Kembali ke menu</a>
-            </div>
-
-            <div class="mt-4 text-center">
-                <a href="{{ route('orders.lookup') }}" class="font-semibold text-brand underline">Cek status pesanan di sini</a>
-            </div>
+    <main class="yc-container flex max-w-[800px] flex-col gap-6 py-10 lg:py-16">
+        <div class="flex flex-col gap-3">
+            <span class="yc-tag-amber self-start">Pesanan diterima</span>
+            <h1 class="yc-h2">Makasih, {{ $order->customer_name }}.</h1>
+            <p class="text-base leading-[26px] text-muted">
+                Pesananmu sudah tercatat. Kirim pesanannya ke WhatsApp aku supaya bisa dicek.
+            </p>
         </div>
+
+        <section class="flex flex-col gap-4 rounded-card border border-charcoal bg-surface p-5 lg:p-6">
+            <div>
+                <p class="yc-mono text-muted">Nomor pesanan</p>
+                <p class="mt-1 font-display text-[32px] leading-9 text-brand">{{ $order->order_number }}</p>
+                <p class="mt-1 text-sm leading-[22px] text-muted">Simpan nomor ini buat cek status pesananmu nanti.</p>
+            </div>
+
+            <div class="flex flex-col">
+                @foreach ($order->items as $item)
+                    <div class="flex items-start justify-between gap-4 border-t border-line py-3">
+                        <div>
+                            <p class="font-bold text-charcoal">{{ $item->product->name }}</p>
+                            <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }} · {{ $item->qty }} botol</p>
+                        </div>
+                        <span class="whitespace-nowrap font-bold text-charcoal">Rp{{ number_format($item->qty * $item->unit_price, 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="flex items-center justify-between border-t border-line pt-4">
+                <span class="font-bold text-charcoal">Total</span>
+                <span class="text-xl font-extrabold leading-5 tracking-[-0.2px] text-charcoal">Rp{{ number_format($total, 0, ',', '.') }}</span>
+            </div>
+        </section>
+
+        <section class="flex flex-col gap-4 rounded-card border border-charcoal bg-sage-soft p-5 lg:p-6">
+            <h2 class="font-display text-[25px] leading-7 text-charcoal">Cara bayar</h2>
+            <ol class="flex flex-col gap-2 text-base leading-[26px] text-charcoal">
+                <li>1. Transfer <strong>Rp{{ number_format($total, 0, ',', '.') }}</strong> ke {{ $payment['bank'] }} <strong>{{ $payment['account_number'] }}</strong> a.n. {{ $payment['account_name'] }}.</li>
+                <li>2. Kirim pesanan ke WhatsApp aku lewat tombol di bawah, sekalian lampirkan bukti transfer.</li>
+                <li>3. Aku kabari kalau pembayaran sudah dicek dan pesanan siap diambil di kantor.</li>
+            </ol>
+
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener" class="yc-btn-cta">Kirim lewat WhatsApp</a>
+                <a href="{{ route('orders.lookup') }}" class="yc-btn-ghost bg-surface">Cek status pesanan</a>
+            </div>
+        </section>
+
+        <a href="{{ route('menu.index') }}" class="self-start text-sm font-bold text-brand underline">Balik ke menu</a>
     </main>
 @endsection

@@ -50,7 +50,7 @@ class OrderManagementTest extends TestCase
 
     public function test_admin_can_mark_order_paid(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order] = $this->makeOrderWithReservedQuota();
 
@@ -66,7 +66,7 @@ class OrderManagementTest extends TestCase
 
     public function test_admin_can_update_order_status(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order] = $this->makeOrderWithReservedQuota();
 
@@ -84,7 +84,7 @@ class OrderManagementTest extends TestCase
 
     public function test_update_status_rejects_cancelled_value(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
 
@@ -105,7 +105,7 @@ class OrderManagementTest extends TestCase
 
     public function test_cancel_releases_quota(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
 
@@ -123,7 +123,7 @@ class OrderManagementTest extends TestCase
 
     public function test_cancelling_a_completed_order_does_not_release_quota(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
         $order->update(['order_status' => 'selesai']);
@@ -143,7 +143,7 @@ class OrderManagementTest extends TestCase
 
     public function test_update_status_rejects_transition_away_from_cancelled(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
 
@@ -167,7 +167,7 @@ class OrderManagementTest extends TestCase
 
     public function test_cancelling_already_cancelled_order_does_not_double_release_quota(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         [$order, $ppp] = $this->makeOrderWithReservedQuota(3);
 

@@ -41,7 +41,7 @@ class CartService
                 continue;
             }
 
-            $lineTotal = $poPeriodProduct->product->base_price * $line['qty'];
+            $unitPrice = $poPeriodProduct->product->priceFor($line['size']);
 
             $lines[] = [
                 'line_key' => $lineKey,
@@ -50,7 +50,8 @@ class CartService
                 'qty' => $line['qty'],
                 'size' => $line['size'],
                 'sweetness' => $line['sweetness'],
-                'line_total' => $lineTotal,
+                'unit_price' => $unitPrice,
+                'line_total' => $unitPrice * $line['qty'],
             ];
         }
 
@@ -81,6 +82,42 @@ class CartService
         unset($cart[$lineKey]);
 
         session([self::SESSION_KEY => $cart]);
+    }
+
+    /**
+     * Raw session line for $lineKey, or null if it isn't in the cart.
+     *
+     * @return array{po_period_product_id: int, qty: int, size: string, sweetness: string}|null
+     */
+    public function line(string $lineKey): ?array
+    {
+        return session(self::SESSION_KEY, [])[$lineKey] ?? null;
+    }
+
+    /**
+     * Bottles of one variant (PoPeriodProduct) in the cart across all sizes and
+     * sweetness levels, optionally ignoring one line (used when that line's qty
+     * is about to be replaced).
+     */
+    public function variantQty(int $poPeriodProductId, ?string $exceptLineKey = null): int
+    {
+        $total = 0;
+
+        foreach (session(self::SESSION_KEY, []) as $lineKey => $line) {
+            if ($lineKey !== $exceptLineKey && (int) $line['po_period_product_id'] === $poPeriodProductId) {
+                $total += $line['qty'];
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * Total number of bottles in the cart (sum of line quantities).
+     */
+    public function count(): int
+    {
+        return (int) array_sum(array_column(session(self::SESSION_KEY, []), 'qty'));
     }
 
     public function clear(): void

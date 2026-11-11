@@ -69,6 +69,40 @@ class OrderLookupTest extends TestCase
         $response->assertSee('2'); // quantity
     }
 
+    public function test_finds_order_when_whatsapp_is_written_in_another_format(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+
+        Order::create([
+            'po_period_id' => $period->id,
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+            'order_number' => 'YC-1-ABCDEF',
+        ]);
+
+        $this->post('/orders/lookup', [
+            'order_number' => 'yc-1-abcdef',
+            'customer_whatsapp' => '+62 812-3456-7890',
+        ])->assertOk()->assertSee('YC-1-ABCDEF')->assertDontSee('Pesanannya nggak ketemu');
+    }
+
+    public function test_wrong_whatsapp_does_not_reveal_order(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+
+        Order::create([
+            'po_period_id' => $period->id,
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+            'order_number' => 'YC-1-ABCDEF',
+        ]);
+
+        $this->post('/orders/lookup', [
+            'order_number' => 'YC-1-ABCDEF',
+            'customer_whatsapp' => '081299999999',
+        ])->assertOk()->assertSee('Pesanannya nggak ketemu')->assertDontSee('Budi Santoso');
+    }
+
     public function test_shows_not_found_for_no_match(): void
     {
         // POST to lookup endpoint with non-existent order
@@ -81,6 +115,6 @@ class OrderLookupTest extends TestCase
         $response->assertStatus(200);
 
         // Assert friendly "not found" message
-        $response->assertSee('Pesanan tidak ditemukan', false);
+        $response->assertSee('Pesanannya nggak ketemu', false);
     }
 }

@@ -20,12 +20,15 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::firstOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => 'admin@yokancha.local'],
             [
                 'name' => 'YokanCha Admin',
                 'password' => Hash::make('ChangeMe123!'),
             ]
         );
+
+        // is_admin is not mass-assignable; set it explicitly.
+        $admin->forceFill(['is_admin' => true])->save();
     }
 }

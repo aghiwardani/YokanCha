@@ -35,7 +35,7 @@ Route::post('/admin/login', [AdminLoginController::class, 'store'])->name('admin
 
 // Admin panel — all /admin/* routes live inside this group behind the auth
 // middleware. Tasks 9–11 add their period/product/order routes here.
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
 
     Route::get('/', fn () => redirect()->route('admin.periods'))->name('home');

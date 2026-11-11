@@ -1,142 +1,100 @@
 @extends('layouts.app')
 
-@section('title', 'Cari Pesanan - YokanCha')
+@section('title', 'Cek Pesanan - YokanCha')
+
+@php
+    $paymentLabels = ['unpaid' => 'Belum bayar', 'paid' => 'Sudah bayar'];
+    $statusLabels = [
+        'new' => 'Baru',
+        'diproses' => 'Diproses',
+        'siap_diambil' => 'Siap diambil',
+        'selesai' => 'Selesai',
+        'cancelled' => 'Dibatalkan',
+    ];
+@endphp
 
 @section('content')
-<div class="min-h-screen bg-oat py-12 px-4">
-    <div class="max-w-2xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-charcoal mb-2">Cari Pesanan Anda</h1>
-            <p class="text-charcoal opacity-75">Masukkan nomor pesanan dan nomor WhatsApp untuk melihat status pesanan Anda</p>
+    <main class="yc-container flex max-w-[800px] flex-col gap-6 py-10 lg:py-16">
+        <div class="flex flex-col gap-3">
+            <h1 class="yc-h2">Cek pesanan</h1>
+            <p class="text-base leading-[26px] text-muted">Masukin nomor pesanan dan nomor WhatsApp yang kamu pakai waktu pesan.</p>
         </div>
 
-        <!-- Search Form -->
-        <div class="bg-surface rounded-brand shadow-sm p-8 mb-8">
-            <form action="{{ route('orders.lookup.search') }}" method="POST" class="space-y-6">
-                @csrf
+        @include('partials.errors')
 
-                <!-- Order Number Input -->
-                <div>
-                    <label for="order_number" class="block text-sm font-semibold text-charcoal mb-2">
-                        Nomor Pesanan
-                    </label>
-                    <input
-                        type="text"
-                        id="order_number"
-                        name="order_number"
-                        value="{{ old('order_number') }}"
-                        placeholder="Contoh: YC-1-ABCDEF"
-                        class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('order_number') border-red-500 @enderror"
-                    />
-                    @error('order_number')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+        <form action="{{ route('orders.lookup.search') }}" method="POST" class="flex flex-col gap-5 rounded-card border border-charcoal bg-surface p-5 lg:p-6">
+            @csrf
 
-                <!-- WhatsApp Number Input -->
-                <div>
-                    <label for="customer_whatsapp" class="block text-sm font-semibold text-charcoal mb-2">
-                        Nomor WhatsApp
-                    </label>
-                    <input
-                        type="text"
-                        id="customer_whatsapp"
-                        name="customer_whatsapp"
-                        value="{{ old('customer_whatsapp') }}"
-                        placeholder="Contoh: 081234567890"
-                        class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('customer_whatsapp') border-red-500 @enderror"
-                    />
-                    @error('customer_whatsapp')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+            <div class="flex flex-col gap-2">
+                <label for="order_number" class="yc-mono text-muted">Nomor pesanan</label>
+                <input
+                    type="text"
+                    id="order_number"
+                    name="order_number"
+                    value="{{ old('order_number', request('order_number')) }}"
+                    placeholder="YC-1-ABCDEF"
+                    required
+                    class="rounded-brand border border-charcoal bg-surface px-4 py-3 text-base uppercase text-charcoal focus:outline focus:outline-2 focus:outline-brand"
+                />
+            </div>
 
-                <!-- Submit Button -->
-                <button
-                    type="submit"
-                    class="w-full bg-cta hover:bg-opacity-90 text-surface font-semibold py-3 px-6 rounded-brand transition duration-200"
-                >
-                    Cari Pesanan
-                </button>
-            </form>
-        </div>
+            <div class="flex flex-col gap-2">
+                <label for="customer_whatsapp" class="yc-mono text-muted">Nomor WhatsApp</label>
+                <input
+                    type="tel"
+                    id="customer_whatsapp"
+                    name="customer_whatsapp"
+                    value="{{ old('customer_whatsapp', request('customer_whatsapp')) }}"
+                    placeholder="081234567890"
+                    inputmode="tel"
+                    required
+                    class="rounded-brand border border-charcoal bg-surface px-4 py-3 text-base text-charcoal focus:outline focus:outline-2 focus:outline-brand"
+                />
+            </div>
 
-        <!-- Search Results -->
-        @if (isset($searched) && $searched)
+            <button type="submit" class="yc-btn-cta self-start">Cari pesanan</button>
+        </form>
+
+        @if (! empty($searched))
             @if ($order)
-                <div class="bg-surface rounded-brand shadow-sm p-8">
-                    <!-- Order Header -->
-                    <div class="mb-6 pb-6 border-b-2 border-oat">
-                        <h2 class="text-2xl font-bold text-charcoal mb-4">{{ $order->order_number }}</h2>
-
-                        <!-- Status Cards -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Payment Status -->
-                            <div class="bg-oat rounded-brand p-4">
-                                <p class="text-sm font-semibold text-charcoal opacity-75 mb-1">Status Pembayaran</p>
-                                <p class="text-lg font-bold text-brand">
-                                    {{ [
-                                        'unpaid' => 'Belum Bayar',
-                                        'paid' => 'Sudah Bayar',
-                                    ][$order->payment_status] ?? $order->payment_status }}
-                                </p>
-                            </div>
-
-                            <!-- Order Status -->
-                            <div class="bg-oat rounded-brand p-4">
-                                <p class="text-sm font-semibold text-charcoal opacity-75 mb-1">Status Pesanan</p>
-                                <p class="text-lg font-bold text-brand">
-                                    {{ [
-                                        'new' => 'Baru',
-                                        'diproses' => 'Diproses',
-                                        'siap_diambil' => 'Siap Diambil',
-                                        'selesai' => 'Selesai',
-                                        'cancelled' => 'Dibatalkan',
-                                    ][$order->order_status] ?? $order->order_status }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Order Items -->
+                <section class="flex flex-col gap-4 rounded-card border border-charcoal bg-surface p-5 lg:p-6" aria-live="polite">
                     <div>
-                        <h3 class="text-lg font-bold text-charcoal mb-4">Daftar Pesanan</h3>
-                        <div class="space-y-3">
-                            @foreach ($order->items as $item)
-                                <div class="flex justify-between items-center p-4 bg-oat rounded-brand">
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-charcoal">{{ $item->product->name }}</p>
-                                        <p class="text-sm text-charcoal opacity-75">{{ $item->size }}, {{ $item->sweetness }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="font-bold text-charcoal">{{ $item->qty }}</p>
-                                        <p class="text-sm text-charcoal opacity-75">item@Rp {{ number_format($item->unit_price, 0, ',', '.') }}</p>
-                                    </div>
-                                </div>
-                            @endforeach
+                        <p class="yc-mono text-muted">Nomor pesanan</p>
+                        <p class="mt-1 font-display text-[32px] leading-9 text-brand">{{ $order->order_number }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div class="rounded-brand bg-sage-soft p-4">
+                            <p class="yc-mono text-muted">Pembayaran</p>
+                            <p class="mt-1 text-lg font-bold text-charcoal">{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</p>
+                        </div>
+                        <div class="rounded-brand bg-sage-soft p-4">
+                            <p class="yc-mono text-muted">Status pesanan</p>
+                            <p class="mt-1 text-lg font-bold text-charcoal">{{ $statusLabels[$order->order_status] ?? $order->order_status }}</p>
                         </div>
                     </div>
-                </div>
-            @else
-                <!-- Not Found Message -->
-                <div class="bg-surface rounded-brand shadow-sm p-8 text-center">
-                    <div class="mb-4">
-                        <p class="text-5xl mb-4">🔍</p>
+
+                    <div class="flex flex-col">
+                        @foreach ($order->items as $item)
+                            <div class="flex items-start justify-between gap-4 border-t border-line py-3">
+                                <div>
+                                    <p class="font-bold text-charcoal">{{ $item->product->name }}</p>
+                                    <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-charcoal">{{ $item->qty }} botol</p>
+                                    <p class="text-sm text-muted">@ Rp{{ number_format($item->unit_price, 0, ',', '.') }}</p>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-                    <h2 class="text-2xl font-bold text-charcoal mb-2">Pesanan tidak ditemukan</h2>
-                    <p class="text-charcoal opacity-75 mb-6">
-                        Periksa kembali nomor pesanan dan nomor WhatsApp Anda, lalu coba lagi.
-                    </p>
-                    <button
-                        onclick="window.history.back()"
-                        class="inline-block bg-brand hover:bg-opacity-90 text-surface font-semibold py-3 px-8 rounded-brand transition duration-200"
-                    >
-                        Coba Lagi
-                    </button>
-                </div>
+                </section>
+            @else
+                <section class="flex flex-col items-center gap-3 rounded-card border border-charcoal bg-surface px-8 py-10 text-center" aria-live="polite">
+                    <p class="font-display text-[25px] leading-7 text-charcoal">Pesanannya nggak ketemu</p>
+                    <p class="text-base leading-[26px] text-muted">Cek lagi nomor pesanan dan nomor WhatsApp-nya.</p>
+                </section>
             @endif
         @endif
-    </div>
-</div>
+    </main>
 @endsection

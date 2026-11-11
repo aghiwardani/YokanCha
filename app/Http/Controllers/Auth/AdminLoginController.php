@@ -28,6 +28,10 @@ class AdminLoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // Only admin accounts may sign in here; other users get the same
+        // generic error so the form doesn't reveal which emails exist.
+        $credentials['is_admin'] = true;
+
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'email' => 'Email atau kata sandi salah.',
