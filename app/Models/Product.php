@@ -64,7 +64,7 @@ class Product extends Model
         $volumes = Size::whereIn('name', $sizes)->pluck('volume_ml', 'name');
         $volumeOf = fn (string $size) => $volumes[$size] ?? Size::volumeFromName($size);
 
-        usort($sizes, fn ($a, $b) => $volumeOf($a) <=> $volumeOf($b));
+        usort($sizes, fn ($a, $b) => Size::sortVolume($volumeOf($a)) <=> Size::sortVolume($volumeOf($b)));
 
         return $sizes;
     }

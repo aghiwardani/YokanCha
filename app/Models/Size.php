@@ -21,22 +21,34 @@ class Size extends Model
         'volume_ml' => 'integer',
     ];
 
+    // Sizes with an unknown volume (0) go last.
     public function scopeSmallestFirst(Builder $query): Builder
     {
-        return $query->orderBy('volume_ml')->orderBy('name');
+        return $query->orderByRaw('volume_ml = 0')->orderBy('volume_ml')->orderBy('name');
+    }
+
+    /**
+     * Sort key for a volume: unknown (0) sorts after every real size.
+     */
+    public static function sortVolume(int $volume): int
+    {
+        return $volume > 0 ? $volume : PHP_INT_MAX;
     }
 
     /**
      * Best guess of the volume in ml from a label such as "250 ml", "250ml",
-     * "1 liter", "1L" or "1.5 liter"; 0 when the label has no number.
+     * "1.000 ml", "1 liter", "1L" or "1.5 liter"; 0 when the label has no number.
      */
     public static function volumeFromName(string $name): int
     {
-        if (! preg_match('/(\d+(?:[.,]\d+)?)\s*([a-z]*)/i', $name, $m)) {
+        if (! preg_match('/(\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)\s*([a-z]*)/i', $name, $m)) {
             return 0;
         }
 
-        $number = (float) str_replace(',', '.', $m[1]);
+        // "1.000" is Indonesian for one thousand; "1.5" is one and a half.
+        $number = preg_match('/^\d{1,3}(?:\.\d{3})+$/', $m[1])
+            ? (float) str_replace('.', '', $m[1])
+            : (float) str_replace(',', '.', $m[1]);
         $unit = strtolower($m[2]);
 
         $isLiter = $unit !== '' && $unit[0] === 'l';

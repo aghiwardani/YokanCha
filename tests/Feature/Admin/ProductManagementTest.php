@@ -354,6 +354,61 @@ class ProductManagementTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/name="sizes\['.$mid->id.'\]\[on\]"[^>]*checked/', $response->getContent());
     }
 
+    public function test_size_missing_from_master_is_kept_on_save_and_flagged(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $milk = $this->ingredient('Susu');
+        $small = Size::create(['name' => '250 ml', 'volume_ml' => 250]);
+        $product = Product::factory()->create([
+            'size_options' => ['250 ml', 'Jumbo'],
+            'size_prices' => ['250 ml' => 30000, 'Jumbo' => 50000],
+        ]);
+        $this->recipe($product, 'Jumbo', $milk, 600);
+
+        $this->get("/admin/products/{$product->id}/edit")
+            ->assertOk()
+            ->assertSee('Jumbo belum ada di daftar Ukuran')
+            ->assertSee('name="recipe[Jumbo]['.$milk->id.']"', false);
+
+        $this->put("/admin/products/{$product->id}", $this->productPayload([
+            'name' => $product->name,
+            'sizes' => [$small->id => ['on' => '1', 'price' => '30000']],
+            'recipe' => ['Jumbo' => [$milk->id => '600']],
+        ]))->assertRedirect('/admin/products');
+
+        $product->refresh();
+        $this->assertSame(['250 ml', 'Jumbo'], $product->size_options);
+        $this->assertSame(50000, $product->priceFor('Jumbo'));
+        $this->assertSame(1, $product->recipes()->where('size', 'Jumbo')->count());
+    }
+
+    public function test_price_with_thousand_dots_is_accepted(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $small = Size::create(['name' => '250 ml', 'volume_ml' => 250]);
+
+        $this->post('/admin/products', $this->productPayload([
+            'sizes' => [$small->id => ['on' => '1', 'price' => '32.000']],
+        ]))->assertRedirect('/admin/products');
+
+        $this->assertSame(32000, Product::where('name', 'Maple Matcha Latte')->first()->priceFor('250 ml'));
+    }
+
+    public function test_prefilled_recipe_column_is_marked_otomatis(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $milk = $this->ingredient('Susu');
+        Size::create(['name' => '250 ml', 'volume_ml' => 250]);
+        Size::create(['name' => '500 ml', 'volume_ml' => 500]);
+        $product = Product::factory()->create(['size_options' => ['250 ml'], 'size_prices' => null]);
+        $this->recipe($product, '250 ml', $milk, 200);
+
+        $html = $this->get("/admin/products/{$product->id}/edit")->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/500 ml\s*<span[^>]*>\(otomatis\)/', $html);
+        $this->assertDoesNotMatchRegularExpression('/250 ml\s*<span[^>]*>\(otomatis\)/', $html);
+    }
+
     public function test_new_size_recipe_is_prefilled_by_scaling_the_smallest_recipe(): void
     {
         $this->actingAs(User::factory()->admin()->create());

@@ -57,6 +57,8 @@ class ProductController extends Controller
             'product' => $product,
             'ingredients' => Ingredient::orderBy('name')->get(),
             'sizes' => $sizes,
+            // Sizes this product sells that the master doesn't know: kept as they are.
+            'extraSizes' => array_values(array_diff($product->size_options ?? [], $sizes->pluck('name')->all())),
             'recipes' => $recipes,
             'recipeDefaults' => $this->scaledRecipeDefaults($recipes, $sizes),
         ]);
@@ -92,7 +94,7 @@ class ProductController extends Controller
             foreach ($recipes[$base->name] as $ingredientId => $row) {
                 $amounts[$ingredientId] = round((float) $row->amount * $factor, 2);
 
-                if ($row->amount_less_sugar !== null) {
+                if ($row->amount_less_sugar !== null && $row->ingredient?->is_sugar) {
                     $lessSugar = round((float) $row->amount_less_sugar * $factor, 2);
                 }
             }
@@ -105,7 +107,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        $validated = $this->validateProduct($request);
+        $validated = $this->validateProduct($request, $product);
 
         DB::transaction(function () use ($request, $validated, $product) {
             $product->update($validated);
@@ -115,8 +117,19 @@ class ProductController extends Controller
         return redirect()->route('admin.products')->with('status', 'Produk berhasil diubah.');
     }
 
-    private function validateProduct(Request $request): array
+    private function validateProduct(Request $request, ?Product $existing = null): array
     {
+        // Prices may be typed the Indonesian way ("32.000").
+        $sizesInput = $request->input('sizes');
+        if (is_array($sizesInput)) {
+            foreach ($sizesInput as $id => $row) {
+                if (is_array($row) && isset($row['price']) && is_string($row['price'])) {
+                    $sizesInput[$id]['price'] = str_replace(['.', ' '], '', $row['price']);
+                }
+            }
+            $request->merge(['sizes' => $sizesInput]);
+        }
+
         // Size names may contain dots ("1.5 liter"), which break wildcard rules,
         // so every leaf amount is checked here instead of with recipe.*.*.
         $amountsRule = function (string $attribute, mixed $value, \Closure $fail) {
@@ -160,9 +173,12 @@ class ProductController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'recipe' => ['nullable', 'array', $amountsRule],
             'recipe_less_sugar' => ['nullable', 'array', $amountsRule],
+        ], [
+            'sizes.*.price.integer' => 'Harga ukuran harus berupa angka.',
+            'sizes.*.price.min' => 'Harga ukuran tidak boleh negatif.',
         ]);
 
-        [$sizes, $sizePrices] = $this->tickedSizes($validated['sizes'] ?? []);
+        [$sizes, $sizePrices] = $this->tickedSizes($validated['sizes'] ?? [], $existing);
 
         return [
             'category' => $validated['category'] ?? 'minuman',
@@ -216,25 +232,42 @@ class ProductController extends Controller
     /**
      * Turn the size checkboxes (sizes[<size id>][on|price]) into size names,
      * smallest first, and a size => price map. A ticked size without a price
-     * is sold at base_price; a price on an unticked size is ignored.
+     * is sold at base_price; a price on an unticked size is ignored. Sizes the
+     * product already sells that are missing from the master (no checkbox to
+     * show) are kept with their prices, so saving never drops them silently.
      *
      * @return array{0: array<int, string>, 1: array<string, int>}
      */
-    private function tickedSizes(array $input): array
+    private function tickedSizes(array $input, ?Product $existing = null): array
     {
         $ticked = array_filter($input, fn ($row) => ! empty($row['on']));
 
-        $sizes = [];
         $prices = [];
+        $volumes = [];
 
-        foreach (Size::smallestFirst()->whereIn('id', array_keys($ticked))->get() as $size) {
-            $sizes[] = $size->name;
+        foreach (Size::whereIn('id', array_keys($ticked))->get() as $size) {
+            $volumes[$size->name] = $size->volume_ml;
 
             $price = $ticked[$size->id]['price'] ?? null;
             if ($price !== null && $price !== '') {
                 $prices[$size->name] = (int) $price;
             }
         }
+
+        if ($existing) {
+            $masterNames = Size::pluck('name')->all();
+            foreach ($existing->size_options ?? [] as $name) {
+                if (! in_array($name, $masterNames, true)) {
+                    $volumes[$name] = Size::volumeFromName($name);
+                    if (isset(($existing->size_prices ?? [])[$name])) {
+                        $prices[$name] = (int) $existing->size_prices[$name];
+                    }
+                }
+            }
+        }
+
+        $sizes = array_keys($volumes);
+        usort($sizes, fn ($a, $b) => [Size::sortVolume($volumes[$a]), $a] <=> [Size::sortVolume($volumes[$b]), $b]);
 
         return [$sizes, $prices];
     }

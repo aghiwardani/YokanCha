@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Size;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -26,22 +25,25 @@ return new class extends Migration
         }
 
         $now = now();
-        $volumes = [];
+        $volumes = [];   // name => volume
+        $seen = [];      // lower-cased name, so "250ML" doesn't collide with "250ml" on MySQL's case-insensitive unique index
 
         foreach (DB::table('products')->pluck('size_options') as $json) {
             foreach ((array) json_decode((string) $json, true) as $name) {
                 $name = trim((string) $name);
+                $key = mb_strtolower($name);
 
-                if ($name === '' || isset($volumes[$name])) {
+                if ($name === '' || isset($seen[$key])) {
                     continue;
                 }
 
-                $volumes[$name] = Size::volumeFromName($name);
+                $seen[$key] = true;
+                $volumes[$name] = $this->volumeFromName($name);
             }
         }
 
         foreach (['250 ml' => 250, '500 ml' => 500, '1 liter' => 1000] as $name => $volume) {
-            if (! isset($volumes[$name]) && ! in_array($volume, $volumes, true)) {
+            if (! isset($seen[mb_strtolower($name)]) && ! in_array($volume, $volumes, true)) {
                 $volumes[$name] = $volume;
             }
         }
@@ -54,6 +56,22 @@ return new class extends Migration
                 'updated_at' => $now,
             ]);
         }
+    }
+
+    // Copy of Size::volumeFromName() at the time of writing, so later model
+    // changes can't alter what this migration does.
+    private function volumeFromName(string $name): int
+    {
+        if (! preg_match('/(\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)\s*([a-z]*)/i', $name, $m)) {
+            return 0;
+        }
+
+        $number = preg_match('/^\d{1,3}(?:\.\d{3})+$/', $m[1])
+            ? (float) str_replace('.', '', $m[1])
+            : (float) str_replace(',', '.', $m[1]);
+        $unit = strtolower($m[2]);
+
+        return (int) round($unit !== '' && $unit[0] === 'l' ? $number * 1000 : $number);
     }
 
     public function down(): void

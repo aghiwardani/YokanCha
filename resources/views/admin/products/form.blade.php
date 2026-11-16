@@ -120,6 +120,11 @@
                         </div>
                         <p class="text-xs text-charcoal opacity-75 mt-1">Centang ukuran yang dijual. Ukuran tanpa harga memakai Harga Dasar. Di menu, ukuran terkecil yang masih tersedia otomatis terpilih.</p>
                     @endif
+                    @foreach ($extraSizes as $extra)
+                        <p class="mt-2 p-2 text-xs text-charcoal bg-amber-50 border-2 border-amber-400 rounded-brand">
+                            {{ $extra }} belum ada di daftar Ukuran. Ukuran ini tetap dijual dengan harga lamanya. Tambahkan di halaman <a href="{{ route('admin.sizes') }}" class="underline">Ukuran</a> dengan nama yang persis sama supaya bisa diatur di sini.
+                        </p>
+                    @endforeach
                     @error('sizes')
                         <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -195,7 +200,9 @@
                 @php
                     // One column per master size (shown only while ticked, with JS),
                     // plus "Satu ukuran" for a product sold without sizes.
-                    $recipeSizes = array_merge($sizes->pluck('name')->all(), ['-']);
+                    $recipeSizes = array_merge($sizes->pluck('name')->all(), $extraSizes, ['-']);
+                    // Columns whose amounts come from scaling, not from a saved recipe.
+                    $isAutoColumn = fn ($size) => ! is_array(old('recipe')) && isset($recipeDefaults[$size]);
                     $sugarIngredient = $ingredients->firstWhere('is_sugar', true);
                     $oldRecipe = old('recipe');
                     $oldLessSugar = old('recipe_less_sugar');
@@ -236,7 +243,7 @@
                                     <tr class="text-left text-charcoal">
                                         <th class="py-2 pr-3 font-semibold">Bahan</th>
                                         @foreach ($recipeSizes as $size)
-                                            <th class="py-2 px-1 font-semibold" data-recipe-col="{{ $size }}">{{ $size === '-' ? 'Satu ukuran' : $size }}</th>
+                                            <th class="py-2 px-1 font-semibold {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">{{ $size === '-' ? 'Satu ukuran' : $size }}@if ($isAutoColumn($size)) <span class="block text-xs font-normal opacity-75">(otomatis)</span>@endif</th>
                                         @endforeach
                                     </tr>
                                 </thead>
@@ -245,7 +252,7 @@
                                         <tr>
                                             <td class="py-1 pr-3 text-charcoal">{{ $ingredient->name }} ({{ $ingredient->unit }})</td>
                                             @foreach ($recipeSizes as $size)
-                                                <td class="py-1 px-1" data-recipe-col="{{ $size }}">
+                                                <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                     <input
                                                         type="number"
                                                         step="0.01"
@@ -262,7 +269,7 @@
                                             <tr>
                                                 <td class="py-1 pr-3 text-charcoal opacity-75">Less sugar ({{ $ingredient->unit }})</td>
                                                 @foreach ($recipeSizes as $size)
-                                                    <td class="py-1 px-1" data-recipe-col="{{ $size }}">
+                                                    <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                         <input
                                                             type="number"
                                                             step="0.01"
@@ -280,22 +287,28 @@
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-xs text-charcoal opacity-75 mt-1">Kosongkan bahan yang tidak dipakai. Resep ukuran yang belum diisi otomatis dihitung dari ukuran terkecil yang sudah punya resep (sesuai isi ml), silakan sesuaikan sebelum menyimpan.</p>
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Kosongkan bahan yang tidak dipakai. Kolom bertanda <strong>(otomatis)</strong> belum punya resep tersimpan: angkanya dihitung dari ukuran terkecil yang sudah punya resep (sesuai isi ml) dan ikut tersimpan saat kamu menekan simpan, jadi sesuaikan dulu kalau perlu.</p>
                         <script>
                             // Show only the recipe columns of ticked sizes; "Satu ukuran"
-                            // only when no size is ticked. Without JS every column shows.
+                            // only when no size is sold. Without JS every column shows.
                             (function () {
                                 var toggles = Array.prototype.slice.call(document.querySelectorAll('[data-size-toggle]'));
+                                var cells = Array.prototype.slice.call(document.querySelectorAll('[data-recipe-col]'));
+                                var hasExtraSizes = {{ count($extraSizes) > 0 ? 'true' : 'false' }};
                                 function sync() {
-                                    var anyTicked = false;
+                                    var ticked = {};
+                                    var anyTicked = hasExtraSizes;
                                     toggles.forEach(function (box) {
+                                        ticked[box.dataset.sizeToggle] = box.checked;
                                         anyTicked = anyTicked || box.checked;
-                                        document.querySelectorAll('[data-recipe-col="' + box.dataset.sizeToggle + '"]').forEach(function (cell) {
-                                            cell.hidden = ! box.checked;
-                                        });
                                     });
-                                    document.querySelectorAll('[data-recipe-col="-"]').forEach(function (cell) {
-                                        cell.hidden = anyTicked;
+                                    cells.forEach(function (cell) {
+                                        var col = cell.dataset.recipeCol;
+                                        if (col === '-') {
+                                            cell.hidden = anyTicked;
+                                        } else if (Object.prototype.hasOwnProperty.call(ticked, col)) {
+                                            cell.hidden = ! ticked[col];
+                                        }
                                     });
                                 }
                                 toggles.forEach(function (box) { box.addEventListener('change', sync); });
