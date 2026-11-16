@@ -165,7 +165,7 @@
             @else
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     @foreach ($items as $item)
-                        @include('menu._card', ['item' => $item])
+                        @include('menu._card', ['item' => $item, 'availability' => $availability])
                     @endforeach
                 </div>
             @endif

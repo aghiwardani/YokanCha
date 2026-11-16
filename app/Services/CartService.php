@@ -85,6 +85,16 @@ class CartService
     }
 
     /**
+     * Raw session lines keyed by line key.
+     *
+     * @return array<string,array{po_period_product_id: int, qty: int, size: string, sweetness: string}>
+     */
+    public function lines(): array
+    {
+        return session(self::SESSION_KEY, []);
+    }
+
+    /**
      * Raw session line for $lineKey, or null if it isn't in the cart.
      *
      * @return array{po_period_product_id: int, qty: int, size: string, sweetness: string}|null

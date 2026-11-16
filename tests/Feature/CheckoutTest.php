@@ -7,11 +7,13 @@ use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\StocksMenu;
 use Tests\TestCase;
 
 class CheckoutTest extends TestCase
 {
     use RefreshDatabase;
+    use StocksMenu;
 
     private function makePoPeriodProduct(int $quota = 5, int $orderedQty = 0): PoPeriodProduct
     {
@@ -30,6 +32,12 @@ class CheckoutTest extends TestCase
             'size_options' => ['250ml', '1L'],
             'sweetness_options' => ['Normal', 'Less Sugar'],
         ]);
+
+        // Cart now validates against ingredient stock; checkout is still quota-based.
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 100000);
+        $this->recipe($product, '250ml', $milk, 200);
+        $this->recipe($product, '1L', $milk, 1000);
 
         return PoPeriodProduct::create([
             'po_period_id' => $period->id,

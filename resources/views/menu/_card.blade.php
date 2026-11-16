@@ -1,15 +1,17 @@
 {{--
     Menu product card (Figma "Kartu/*", desktop 7:13 & 7:61, mobile 9:85).
-    $item: PoPeriodProduct with ->product loaded. Every card has the same layout and
+    $item: PoPeriodProduct with ->product loaded; $availability: MenuController's ppp_id => {max, sizes}. Every card has the same layout and
     size so the grid stays even (the wide Figma "featured" card is not used).
 --}}
 @php
     $product = $item->product;
-    $remaining = $item->remaining();
+    $remaining = $availability[$item->id]['max'] ?? 0;
+    $sizeStock = $availability[$item->id]['sizes'] ?? [];
     $soldOut = $remaining <= 0;
     $sizes = $product->size_options ?: [];
     $sweetness = $product->sweetness_options ?: [];
     $firstSize = $sizes[0] ?? null;
+    $firstEnabledSize = collect($sizes)->first(fn ($size) => ($sizeStock[$size] ?? 0) > 0);
     $price = $product->priceFor($firstSize);
     $rupiah = fn (int $amount) => 'Rp'.number_format($amount, 0, ',', '.');
 
@@ -62,8 +64,8 @@
                                     value="{{ $size }}"
                                     class="peer sr-only"
                                     data-price="{{ $rupiah($product->priceFor($size)) }}"
-                                    @checked($index === 0)
-                                    @disabled($soldOut)
+                                    @checked($size === $firstEnabledSize)
+                                    @disabled($soldOut || ($sizeStock[$size] ?? 0) <= 0)
                                 >
                                 <span class="yc-chip">
                                     <span class="text-sm font-bold leading-[18px]">{{ $size }}</span>

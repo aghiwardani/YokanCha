@@ -6,11 +6,13 @@ use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\StocksMenu;
 use Tests\TestCase;
 
 class MenuTest extends TestCase
 {
     use RefreshDatabase;
+    use StocksMenu;
 
     public function test_shows_products_for_open_period_with_remaining_quota(): void
     {
@@ -29,6 +31,11 @@ class MenuTest extends TestCase
             'size_options' => ['250ml', '1L'],
             'sweetness_options' => ['Normal', 'Less Sugar'],
         ]);
+
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 600);
+        $this->recipe($product, '250ml', $milk, 200);
+        $this->recipe($product, '1L', $milk, 1000);
 
         PoPeriodProduct::create([
             'po_period_id' => $period->id,
@@ -73,7 +80,12 @@ class MenuTest extends TestCase
             'sort_order' => 1,
         ]);
 
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 100000);
+
         foreach ([$second, $first] as $product) {
+            $this->recipe($product, '250 ml', $milk, 200);
+            $this->recipe($product, '1 liter', $milk, 800);
             PoPeriodProduct::create([
                 'po_period_id' => $period->id,
                 'product_id' => $product->id,
@@ -94,6 +106,9 @@ class MenuTest extends TestCase
     {
         $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
         $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 10000);
+        $this->recipe($product, '250 ml', $milk, 200);
         $ppp = PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
 
         $this->get('/')->assertSee('Keranjang')->assertDontSee('Keranjang · ');
@@ -113,6 +128,41 @@ class MenuTest extends TestCase
         }
 
         $this->get('/')->assertSee('2 varian · 250ml &amp; 1 liter', false);
+    }
+
+    public function test_card_shows_habis_when_an_ingredient_runs_out(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 1000, 900);
+        $this->recipe($product, '250 ml', $milk, 200);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+
+        $this->get('/')->assertSee('Habis')->assertSee('Sisa 0 botol');
+    }
+
+    public function test_size_without_enough_stock_is_disabled(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+        $product = Product::create([
+            'name' => 'Matcha Oat',
+            'base_price' => 32000,
+            'size_options' => ['250 ml', '1 liter'],
+            'size_prices' => ['250 ml' => 32000, '1 liter' => 110000],
+        ]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 500);
+        $this->recipe($product, '250 ml', $milk, 1000);
+        $this->recipe($product, '1 liter', $milk, 250);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/value="250 ml"[^>]*disabled/s', $html);
+        $this->assertDoesNotMatchRegularExpression('/value="1 liter"[^>]*disabled/s', $html);
+        $this->assertMatchesRegularExpression('/value="1 liter"[^>]*checked/s', $html);
+        $this->assertDoesNotMatchRegularExpression('/value="250 ml"[^>]*checked/s', $html);
     }
 
     public function test_landing_says_matcha_is_ceremonial_blend(): void
@@ -147,6 +197,9 @@ class MenuTest extends TestCase
     {
         $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
         $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml', '500 ml']]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 10000);
+        $this->recipe($product, '250 ml', $milk, 200);
         PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
 
         $this->get('/')

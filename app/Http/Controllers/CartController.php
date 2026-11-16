@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Services\CartService;
+use App\Services\StockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
 
 class CartController extends Controller
 {
-    public function __construct(private CartService $cart)
+    public function __construct(private CartService $cart, private StockService $stock)
     {
     }
 
@@ -66,7 +67,17 @@ class CartController extends Controller
         $this->assertOffered($data['size'], $ppp->product->size_options, 'size', 'ukuran');
         $this->assertOffered($data['sweetness'], $ppp->product->sweetness_options, 'sweetness', 'manis');
 
-        $this->assertVariantLimits($ppp, $this->cart->variantQty($ppp->id) + (int) $data['qty']);
+        $lineKey = "{$ppp->id}|{$data['size']}|{$data['sweetness']}";
+        $lineQty = (int) ($this->cart->line($lineKey)['qty'] ?? 0) + (int) $data['qty'];
+
+        $this->assertVariantLimits(
+            $ppp,
+            $data['size'],
+            $data['sweetness'],
+            $lineQty,
+            $this->cart->variantQty($ppp->id) + (int) $data['qty'],
+            null,
+        );
 
         $this->cart->add($ppp->id, (int) $data['qty'], $data['size'], $data['sweetness']);
 
@@ -97,7 +108,14 @@ class CartController extends Controller
             $ppp = PoPeriodProduct::with('product')->find($line['po_period_product_id']);
 
             if ($ppp) {
-                $this->assertVariantLimits($ppp, $this->cart->variantQty($ppp->id, $lineKey) + (int) $data['qty']);
+                $this->assertVariantLimits(
+                    $ppp,
+                    $line['size'],
+                    $line['sweetness'],
+                    (int) $data['qty'],
+                    $this->cart->variantQty($ppp->id, $lineKey) + (int) $data['qty'],
+                    $lineKey,
+                );
             }
         }
 
@@ -146,10 +164,18 @@ class CartController extends Controller
     }
 
     /**
-     * $variantTotal is how many bottles of this variant the cart would hold.
+     * $variantTotal is how many bottles of this variant the cart would hold;
+     * $lineQty is what the (ppp, size, sweetness) cart line would end up with.
+     * Ingredient stock is checked after subtracting every other cart line.
      */
-    private function assertVariantLimits(PoPeriodProduct $ppp, int $variantTotal): void
-    {
+    private function assertVariantLimits(
+        PoPeriodProduct $ppp,
+        string $size,
+        string $sweetness,
+        int $lineQty,
+        int $variantTotal,
+        ?string $exceptLineKey,
+    ): void {
         $max = config('yokancha.max_per_variant');
         $name = $ppp->product->name;
 
@@ -159,13 +185,19 @@ class CartController extends Controller
             ]);
         }
 
-        $remaining = max(0, $ppp->remaining());
+        $thisKey = "{$ppp->id}|{$size}|{$sweetness}";
+        $others = $this->stock->need(array_values(array_filter(
+            $this->cart->items(),
+            fn (array $line) => $line['line_key'] !== $thisKey && $line['line_key'] !== $exceptLineKey,
+        )));
 
-        if ($variantTotal > $remaining) {
+        $canMake = $this->stock->available($ppp, $size, $sweetness, $others);
+
+        if ($lineQty > $canMake) {
             throw ValidationException::withMessages([
-                'qty' => $remaining === 0
+                'qty' => $canMake === 0
                     ? "{$name} sudah habis untuk batch ini."
-                    : "Stok {$name} tinggal {$remaining} botol lagi.",
+                    : "Stok {$name} ukuran {$size} tinggal cukup buat {$canMake} botol lagi.",
             ]);
         }
     }

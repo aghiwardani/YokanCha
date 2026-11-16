@@ -3,14 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\PoPeriod;
+use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\StocksMenu;
 use Tests\TestCase;
 
 class CartTest extends TestCase
 {
     use RefreshDatabase;
+    use StocksMenu;
+
+    private $milk;
 
     private function makePoPeriodProduct(): PoPeriodProduct
     {
@@ -29,6 +34,11 @@ class CartTest extends TestCase
             'size_options' => ['250ml', '1L'],
             'sweetness_options' => ['Normal', 'Less Sugar'],
         ]);
+
+        $this->milk = $this->ingredient('Susu');
+        $this->stock($period, $this->milk, 100000);
+        $this->recipe($product, '250ml', $this->milk, 200);
+        $this->recipe($product, '1L', $this->milk, 1000);
 
         return PoPeriodProduct::create([
             'po_period_id' => $period->id,
@@ -125,13 +135,59 @@ class CartTest extends TestCase
             ->assertRedirect(route('menu.index').'#menu');
     }
 
-    public function test_cannot_add_more_than_remaining_quota(): void
+    public function test_cannot_add_more_than_ingredients_allow(): void
     {
         $ppp = $this->makePoPeriodProduct();
-        $ppp->update(['quota' => 5, 'ordered_qty' => 3]);
+        PoPeriodIngredient::query()->update(['stock' => 1000]);
 
-        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 3]))->assertSessionHasErrors('qty');
-        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 2]))->assertSessionHasNoErrors();
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 6]))
+            ->assertSessionHasErrors(['qty' => 'Stok Matcha Latte ukuran 250ml tinggal cukup buat 5 botol lagi.']);
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 5]))->assertSessionHasNoErrors();
+    }
+
+    public function test_sold_out_variant_says_habis(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        PoPeriodIngredient::query()->update(['stock' => 100]);
+
+        $this->post('/cart', $this->cartPayload($ppp))
+            ->assertSessionHasErrors(['qty' => 'Matcha Latte sudah habis untuk batch ini.']);
+    }
+
+    public function test_cart_sums_shared_ingredient_across_lines(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        PoPeriodIngredient::query()->update(['stock' => 1000]);
+
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 3, 'sweetness' => 'Normal']))->assertSessionHasNoErrors();
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 3, 'sweetness' => 'Less Sugar']))->assertSessionHasErrors('qty');
+
+        $this->assertSame(3, app(\App\Services\CartService::class)->count());
+    }
+
+    public function test_cart_checks_shared_ingredient_across_products(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        PoPeriodIngredient::query()->update(['stock' => 1000]);
+
+        $other = Product::create(['name' => 'Hojicha', 'base_price' => 25000, 'size_options' => ['250ml']]);
+        $this->recipe($other, '250ml', $this->milk, 200);
+        $otherPpp = PoPeriodProduct::create(['po_period_id' => $ppp->po_period_id, 'product_id' => $other->id, 'quota' => 10]);
+
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 3]))->assertSessionHasNoErrors();
+        $this->post('/cart', $this->cartPayload($otherPpp, ['qty' => 3, 'sweetness' => '-']))
+            ->assertSessionHasErrors(['qty' => 'Stok Hojicha ukuran 250ml tinggal cukup buat 2 botol lagi.']);
+    }
+
+    public function test_update_checks_ingredients_excluding_its_own_line(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        PoPeriodIngredient::query()->update(['stock' => 1000]);
+
+        $this->post('/cart', $this->cartPayload($ppp, ['qty' => 2]));
+
+        $this->patch("/cart/{$ppp->id}|250ml|Normal", ['qty' => 5])->assertSessionHasNoErrors();
+        $this->patch("/cart/{$ppp->id}|250ml|Normal", ['qty' => 6])->assertSessionHasErrors('qty');
     }
 
     public function test_update_cannot_raise_a_variant_above_twenty(): void
