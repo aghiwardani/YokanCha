@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
 use App\Models\PoPeriod;
 use App\Services\CartService;
-use App\Services\QuotaService;
+use App\Services\StockService;
 use App\Support\Phone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class CheckoutController extends Controller
 {
     public function __construct(
         private CartService $cart,
-        private QuotaService $quota,
+        private StockService $stock,
     ) {
     }
 
@@ -67,14 +68,12 @@ class CheckoutController extends Controller
         $poPeriodId = $openPeriod->id;
 
         $order = DB::transaction(function () use ($data, $lines, $poPeriodId) {
-            foreach ($lines as $line) {
-                $ppp = $line['po_period_product'];
-
-                if (! $this->quota->reserve($ppp, $line['qty'])) {
-                    throw ValidationException::withMessages([
-                        'quota' => "Stok {$line['product']->name} tidak cukup. Kurangi jumlahnya atau hapus dari keranjang.",
-                    ]);
-                }
+            try {
+                $usages = $this->stock->reserve($poPeriodId, $lines);
+            } catch (InsufficientStockException $e) {
+                throw ValidationException::withMessages([
+                    'quota' => "Stok bahan buat {$e->productName} tidak cukup. Kurangi jumlahnya atau hapus dari keranjang.",
+                ]);
             }
 
             $order = Order::create([
@@ -84,14 +83,21 @@ class CheckoutController extends Controller
                 'order_number' => $this->generateOrderNumber($poPeriodId),
             ]);
 
-            foreach ($lines as $line) {
-                $order->items()->create([
+            foreach ($lines as $index => $line) {
+                $item = $order->items()->create([
                     'product_id' => $line['product']->id,
                     'size' => $line['size'],
                     'sweetness' => $line['sweetness'],
                     'qty' => $line['qty'],
                     'unit_price' => $line['unit_price'],
                 ]);
+
+                foreach ($usages[$index] ?? [] as $ingredientId => $amount) {
+                    $item->ingredientUsages()->create([
+                        'ingredient_id' => $ingredientId,
+                        'amount' => $amount,
+                    ]);
+                }
             }
 
             return $order;

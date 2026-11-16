@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Ingredient;
 use App\Models\Order;
+use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
@@ -15,7 +17,7 @@ class CheckoutTest extends TestCase
     use RefreshDatabase;
     use StocksMenu;
 
-    private function makePoPeriodProduct(int $quota = 5, int $orderedQty = 0): PoPeriodProduct
+    private function makePoPeriodProduct(int $quota = 5): PoPeriodProduct
     {
         $period = PoPeriod::create([
             'name' => 'PO Batch 1',
@@ -33,7 +35,6 @@ class CheckoutTest extends TestCase
             'sweetness_options' => ['Normal', 'Less Sugar'],
         ]);
 
-        // Cart now validates against ingredient stock; checkout is still quota-based.
         $milk = $this->ingredient('Susu');
         $this->stock($period, $milk, 100000);
         $this->recipe($product, '250ml', $milk, 200);
@@ -43,7 +44,32 @@ class CheckoutTest extends TestCase
             'po_period_id' => $period->id,
             'product_id' => $product->id,
             'quota' => $quota,
-            'ordered_qty' => $orderedQty,
+        ]);
+    }
+
+    private function milkUsed(PoPeriodProduct $ppp): float
+    {
+        return (float) PoPeriodIngredient::where('po_period_id', $ppp->po_period_id)->firstOrFail()->used;
+    }
+
+    public function test_checkout_writes_ingredient_snapshots(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        $this->addToCart($ppp, 2);
+
+        $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $item = Order::first()->items()->first();
+        $milk = Ingredient::where('name', 'Susu')->first();
+
+        $this->assertDatabaseCount('order_item_ingredients', 1);
+        $this->assertDatabaseHas('order_item_ingredients', [
+            'order_item_id' => $item->id,
+            'ingredient_id' => $milk->id,
+            'amount' => 400,
         ]);
     }
 
@@ -57,9 +83,9 @@ class CheckoutTest extends TestCase
         ]);
     }
 
-    public function test_submits_order_with_sufficient_quota(): void
+    public function test_submits_order_with_sufficient_stock(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 0);
+        $ppp = $this->makePoPeriodProduct();
 
         $this->addToCart($ppp, 2);
 
@@ -84,12 +110,12 @@ class CheckoutTest extends TestCase
         $this->assertSame(2, $item->qty);
         $this->assertSame(25000, $item->unit_price);
 
-        $this->assertSame(2, $ppp->fresh()->ordered_qty);
+        $this->assertEquals(400, $this->milkUsed($ppp));
     }
 
     public function test_rejects_whatsapp_number_that_is_not_a_phone_number(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $ppp = $this->makePoPeriodProduct();
         $this->addToCart($ppp, 1);
 
         $this->post('/checkout', [
@@ -109,7 +135,7 @@ class CheckoutTest extends TestCase
             'yokancha.payment.account_name' => 'Pemilik YokanCha',
         ]);
 
-        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $ppp = $this->makePoPeriodProduct();
         $this->addToCart($ppp, 2);
 
         $this->post('/checkout', [
@@ -138,7 +164,7 @@ class CheckoutTest extends TestCase
 
     public function test_order_item_uses_price_of_selected_size(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5);
+        $ppp = $this->makePoPeriodProduct();
         $ppp->product->update(['size_prices' => ['250ml' => 32000, '1L' => 110000]]);
 
         $this->post('/cart', [
@@ -160,15 +186,14 @@ class CheckoutTest extends TestCase
         $this->assertSame(110000, $item->unit_price);
     }
 
-    public function test_rejects_checkout_when_quota_insufficient_at_submit_time(): void
+    public function test_rejects_checkout_when_ingredients_ran_out_after_adding(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 0);
+        $ppp = $this->makePoPeriodProduct();
 
         $this->addToCart($ppp, 3);
 
-        // Other customers buy most of the stock before this one checks out,
-        // so the cart line now asks for more than the remaining quota (1).
-        $ppp->update(['ordered_qty' => 4]);
+        // Other customers use up the milk before this one checks out.
+        PoPeriodIngredient::query()->update(['used' => 99900]);
 
         $response = $this->post('/checkout', [
             'customer_name' => 'Budi Santoso',
@@ -177,7 +202,7 @@ class CheckoutTest extends TestCase
 
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('order_items', 0);
-        $this->assertSame(4, $ppp->fresh()->ordered_qty);
+        $this->assertEquals(99900, $this->milkUsed($ppp));
 
         $response->assertSessionHasErrors();
         $response->assertSessionHas('errors', function ($errors) {
@@ -187,7 +212,7 @@ class CheckoutTest extends TestCase
 
     public function test_rejects_checkout_when_period_closed_after_adding_to_cart(): void
     {
-        $ppp = $this->makePoPeriodProduct(quota: 5, orderedQty: 0);
+        $ppp = $this->makePoPeriodProduct();
 
         $this->addToCart($ppp, 2);
 
@@ -201,7 +226,7 @@ class CheckoutTest extends TestCase
 
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('order_items', 0);
-        $this->assertSame(0, $ppp->fresh()->ordered_qty);
+        $this->assertEquals(0, $this->milkUsed($ppp));
 
         $response->assertSessionHasErrors('cart');
     }
@@ -237,7 +262,6 @@ class CheckoutTest extends TestCase
             'po_period_id' => $stalePeriod->id,
             'product_id' => $staleProduct->id,
             'quota' => 5,
-            'ordered_qty' => 0,
         ]);
 
         $this->addToCart($stalePpp, 1);

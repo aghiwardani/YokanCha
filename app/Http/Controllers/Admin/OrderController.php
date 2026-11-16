@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PoPeriod;
-use App\Models\PoPeriodProduct;
-use App\Services\QuotaService;
+use App\Services\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +14,7 @@ use Illuminate\View\View;
 
 class OrderController extends Controller
 {
-    public function __construct(private QuotaService $quotaService)
+    public function __construct(private StockService $stock)
     {
     }
 
@@ -87,17 +86,7 @@ class OrderController extends Controller
                 return false;
             }
 
-            $locked->load('items');
-
-            foreach ($locked->items as $item) {
-                $ppp = PoPeriodProduct::where('po_period_id', $locked->po_period_id)
-                    ->where('product_id', $item->product_id)
-                    ->first();
-
-                if ($ppp) {
-                    $this->quotaService->release($ppp, $item->qty);
-                }
-            }
+            $this->stock->release($locked);
 
             $locked->update(['order_status' => 'cancelled']);
 
@@ -105,7 +94,7 @@ class OrderController extends Controller
         });
 
         $message = $wasCancelled
-            ? 'Pesanan dibatalkan dan kuota dikembalikan.'
+            ? 'Pesanan dibatalkan dan bahan dikembalikan ke stok.'
             : 'Pesanan tidak dapat dibatalkan (sudah dibatalkan atau selesai).';
 
         return redirect()->route('admin.orders.show', $order)
