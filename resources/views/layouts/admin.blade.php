@@ -21,17 +21,10 @@
                 </a>
 
                 <a
-                    href="{{ route('admin.ingredients') }}"
-                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.ingredients*') ? 'text-brand' : '' }}"
+                    href="{{ route('admin.master') }}"
+                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.master') ? 'text-brand' : '' }}"
                 >
-                    Bahan
-                </a>
-
-                <a
-                    href="{{ route('admin.sizes') }}"
-                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.sizes*') ? 'text-brand' : '' }}"
-                >
-                    Ukuran
+                    Master Data
                 </a>
 
                 <a

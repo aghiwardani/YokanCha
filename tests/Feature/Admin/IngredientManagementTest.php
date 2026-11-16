@@ -15,12 +15,12 @@ class IngredientManagementTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        $this->get('/admin/ingredients')->assertOk();
+        $this->get('/admin/master')->assertOk();
 
         $this->post('/admin/ingredients', [
             'name' => 'Matcha',
             'unit' => 'g',
-        ])->assertRedirect('/admin/ingredients');
+        ])->assertRedirect('/admin/master#bahan');
 
         $this->assertDatabaseHas('ingredients', [
             'name' => 'Matcha',
@@ -37,7 +37,7 @@ class IngredientManagementTest extends TestCase
         $this->put("/admin/ingredients/{$ingredient->id}", [
             'name' => 'Susu UHT',
             'unit' => 'ml',
-        ])->assertRedirect('/admin/ingredients');
+        ])->assertRedirect('/admin/master#bahan');
 
         $this->assertDatabaseHas('ingredients', [
             'id' => $ingredient->id,
@@ -49,7 +49,7 @@ class IngredientManagementTest extends TestCase
         $this->put("/admin/ingredients/{$ingredient->id}", [
             'name' => 'Susu UHT',
             'unit' => 'ml',
-        ])->assertRedirect('/admin/ingredients')->assertSessionHasNoErrors();
+        ])->assertRedirect('/admin/master#bahan')->assertSessionHasNoErrors();
     }
 
     public function test_unit_must_be_g_or_ml(): void
@@ -73,7 +73,7 @@ class IngredientManagementTest extends TestCase
             'name' => 'Gula Aren',
             'unit' => 'g',
             'is_sugar' => '1',
-        ])->assertRedirect('/admin/ingredients');
+        ])->assertRedirect('/admin/master#bahan');
 
         $second = Ingredient::where('name', 'Gula Aren')->firstOrFail();
         $this->assertTrue($second->is_sugar);
@@ -120,15 +120,15 @@ class IngredientManagementTest extends TestCase
         Ingredient::create(['name' => 'Susu', 'unit' => 'g', 'is_sugar' => false]);
         $other = Ingredient::create(['name' => 'Teh', 'unit' => 'g', 'is_sugar' => false]);
 
-        $response = $this->from('/admin/ingredients')->put("/admin/ingredients/{$other->id}", [
-            '_form' => "row-{$other->id}",
+        $response = $this->from('/admin/master')->put("/admin/ingredients/{$other->id}", [
+            '_form' => "ingredient-row-{$other->id}",
             'name' => 'Susu',
             'unit' => 'ml',
             'is_sugar' => '1',
         ]);
-        $response->assertRedirect('/admin/ingredients')->assertSessionHasErrors('name');
+        $response->assertRedirect('/admin/master')->assertSessionHasErrors('name');
 
-        $page = $this->get('/admin/ingredients');
+        $page = $this->get('/admin/master');
         $html = $page->getContent();
 
         // The add form stays empty: its name input has an empty value and no checked box.

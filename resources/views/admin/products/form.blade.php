@@ -82,7 +82,7 @@
                 <fieldset>
                     <legend class="block text-sm font-semibold text-charcoal mb-2">Ukuran</legend>
                     @if ($sizes->isEmpty())
-                        <p class="text-xs text-charcoal opacity-75">Belum ada ukuran. Tambahkan dulu di halaman <a href="{{ route('admin.sizes') }}" class="underline">Ukuran</a>.</p>
+                        <p class="text-xs text-charcoal opacity-75">Belum ada ukuran. Tambahkan dulu di halaman <a href="{{ route('admin.master') }}#ukuran" class="underline">Ukuran</a>.</p>
                     @else
                         @php
                             $oldSizes = old('sizes');
@@ -122,7 +122,7 @@
                     @endif
                     @foreach ($extraSizes as $extra)
                         <p class="mt-2 p-2 text-xs text-charcoal bg-amber-50 border-2 border-amber-400 rounded-brand">
-                            {{ $extra }} belum ada di daftar Ukuran. Ukuran ini tetap dijual dengan harga lamanya. Tambahkan di halaman <a href="{{ route('admin.sizes') }}" class="underline">Ukuran</a> dengan nama yang persis sama supaya bisa diatur di sini.
+                            {{ $extra }} belum ada di daftar Ukuran. Ukuran ini tetap dijual dengan harga lamanya. Tambahkan di halaman <a href="{{ route('admin.master') }}#ukuran" class="underline">Ukuran</a> dengan nama yang persis sama supaya bisa diatur di sini.
                         </p>
                     @endforeach
                     @error('sizes')

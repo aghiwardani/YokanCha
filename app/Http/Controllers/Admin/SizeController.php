@@ -8,22 +8,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class SizeController extends Controller
 {
-    public function index(): View
-    {
-        return view('admin.sizes.index', [
-            'sizes' => Size::smallestFirst()->get(),
-        ]);
-    }
-
     public function store(Request $request): RedirectResponse
     {
         Size::create($this->validated($request));
 
-        return redirect()->route('admin.sizes')->with('status', 'Ukuran berhasil ditambahkan.');
+        return $this->backToList()->with('status', 'Ukuran berhasil ditambahkan.');
     }
 
     public function update(Request $request, Size $size): RedirectResponse
@@ -40,7 +32,23 @@ class SizeController extends Controller
 
         $size->update($data);
 
-        return redirect()->route('admin.sizes')->with('status', 'Ukuran berhasil diubah.');
+        return $this->backToList()->with('status', 'Ukuran berhasil diubah.');
+    }
+
+    public function destroy(Size $size): RedirectResponse
+    {
+        if ($size->isUsed()) {
+            return $this->backToList()->with('error', "{$size->name} masih dipakai produk, jadi tidak bisa dihapus. Hilangkan centangnya di produk dulu.");
+        }
+
+        $size->delete();
+
+        return $this->backToList()->with('status', 'Ukuran berhasil dihapus.');
+    }
+
+    private function backToList(): RedirectResponse
+    {
+        return redirect()->to(route('admin.master').'#ukuran');
     }
 
     private function validated(Request $request, ?Size $size = null): array

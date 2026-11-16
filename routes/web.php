@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\IngredientController;
+use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
@@ -55,13 +56,18 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
 
-    Route::get('/ingredients', [IngredientController::class, 'index'])->name('ingredients');
+    // Master data: ingredients (Bahan) and sizes (Ukuran) on one page.
+    Route::get('/master', [MasterDataController::class, 'index'])->name('master');
+
+    Route::get('/ingredients', fn () => redirect()->to(route('admin.master').'#bahan'))->name('ingredients');
     Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
     Route::put('/ingredients/{ingredient}', [IngredientController::class, 'update'])->name('ingredients.update');
+    Route::delete('/ingredients/{ingredient}', [IngredientController::class, 'destroy'])->name('ingredients.destroy');
 
-    Route::get('/sizes', [SizeController::class, 'index'])->name('sizes');
+    Route::get('/sizes', fn () => redirect()->to(route('admin.master').'#ukuran'))->name('sizes');
     Route::post('/sizes', [SizeController::class, 'store'])->name('sizes.store');
     Route::put('/sizes/{size}', [SizeController::class, 'update'])->name('sizes.update');
+    Route::delete('/sizes/{size}', [SizeController::class, 'destroy'])->name('sizes.destroy');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');

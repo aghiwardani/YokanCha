@@ -29,7 +29,7 @@ class SizeManagementTest extends TestCase
         Size::create(['name' => '500 ml', 'volume_ml' => 500]);
 
         $this->actingAs($this->admin())
-            ->get('/admin/sizes')
+            ->get('/admin/master')
             ->assertOk()
             ->assertSeeInOrder(['250 ml', '500 ml', '1 liter']);
     }
@@ -37,8 +37,8 @@ class SizeManagementTest extends TestCase
     public function test_admin_can_create_size(): void
     {
         $this->actingAs($this->admin())
-            ->post('/admin/sizes', ['_form' => 'new', 'name' => '500 ml', 'volume_ml' => 500])
-            ->assertRedirect('/admin/sizes');
+            ->post('/admin/sizes', ['_form' => 'size-new', 'name' => '500 ml', 'volume_ml' => 500])
+            ->assertRedirect('/admin/master#ukuran');
 
         $this->assertDatabaseHas('sizes', ['name' => '500 ml', 'volume_ml' => 500]);
     }
@@ -48,7 +48,7 @@ class SizeManagementTest extends TestCase
         Size::create(['name' => '500 ml', 'volume_ml' => 500]);
 
         $this->actingAs($this->admin())
-            ->post('/admin/sizes', ['_form' => 'new', 'name' => '500 ml', 'volume_ml' => 0])
+            ->post('/admin/sizes', ['_form' => 'size-new', 'name' => '500 ml', 'volume_ml' => 0])
             ->assertSessionHasErrors(['name', 'volume_ml']);
 
         $this->assertSame(1, Size::count());
@@ -60,8 +60,8 @@ class SizeManagementTest extends TestCase
         Product::factory()->create(['size_options' => ['500 ml']]);
 
         $this->actingAs($this->admin())
-            ->put("/admin/sizes/{$size->id}", ['_form' => "row-{$size->id}", 'name' => '500 ml', 'volume_ml' => 450])
-            ->assertRedirect('/admin/sizes');
+            ->put("/admin/sizes/{$size->id}", ['_form' => "size-row-{$size->id}", 'name' => '500 ml', 'volume_ml' => 450])
+            ->assertRedirect('/admin/master#ukuran');
 
         $this->assertSame(450, $size->fresh()->volume_ml);
     }
@@ -72,7 +72,7 @@ class SizeManagementTest extends TestCase
         Product::factory()->create(['size_options' => ['500 ml']]);
 
         $this->actingAs($this->admin())
-            ->put("/admin/sizes/{$size->id}", ['_form' => "row-{$size->id}", 'name' => '500ml', 'volume_ml' => 500])
+            ->put("/admin/sizes/{$size->id}", ['_form' => "size-row-{$size->id}", 'name' => '500ml', 'volume_ml' => 500])
             ->assertSessionHasErrors('name');
 
         $this->assertSame('500 ml', $size->fresh()->name);
@@ -83,8 +83,8 @@ class SizeManagementTest extends TestCase
         $size = Size::create(['name' => '500ml', 'volume_ml' => 500]);
 
         $this->actingAs($this->admin())
-            ->put("/admin/sizes/{$size->id}", ['_form' => "row-{$size->id}", 'name' => '500 ml', 'volume_ml' => 500])
-            ->assertRedirect('/admin/sizes');
+            ->put("/admin/sizes/{$size->id}", ['_form' => "size-row-{$size->id}", 'name' => '500 ml', 'volume_ml' => 500])
+            ->assertRedirect('/admin/master#ukuran');
 
         $this->assertSame('500 ml', $size->fresh()->name);
     }
