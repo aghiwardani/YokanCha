@@ -203,7 +203,6 @@
                     $recipeSizes = array_merge($sizes->pluck('name')->all(), $extraSizes, ['-']);
                     // Columns whose amounts come from scaling, not from a saved recipe.
                     $isAutoColumn = fn ($size) => ! is_array(old('recipe')) && isset($recipeDefaults[$size]);
-                    $sugarIngredient = $ingredients->firstWhere('is_sugar', true);
                     $oldRecipe = old('recipe');
                     $oldLessSugar = old('recipe_less_sugar');
                     $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
@@ -218,14 +217,15 @@
 
                         return isset($recipeDefaults[$size]['amounts'][$ingredientId]) ? $fmt($recipeDefaults[$size]['amounts'][$ingredientId]) : '';
                     };
-                    $lessSugarValue = function ($size) use ($oldLessSugar, $oldRecipe, $recipes, $recipeDefaults, $sugarIngredient, $fmt) {
+                    // Less-sugar amount of one sugar ingredient (each sweetener has its own).
+                    $lessSugarValue = function ($size, $ingredientId) use ($oldLessSugar, $oldRecipe, $recipes, $recipeDefaults, $fmt) {
                         if (is_array($oldRecipe) || is_array($oldLessSugar)) {
-                            return $oldLessSugar[$size] ?? '';
+                            return $oldLessSugar[$size][$ingredientId] ?? '';
                         }
                         if (isset($recipes[$size])) {
-                            $less = $sugarIngredient ? ($recipes[$size][$sugarIngredient->id]->amount_less_sugar ?? null) : null;
+                            $less = $recipes[$size][$ingredientId]->amount_less_sugar ?? null;
                         } else {
-                            $less = $recipeDefaults[$size]['less_sugar'] ?? null;
+                            $less = $recipeDefaults[$size]['less_sugar'][$ingredientId] ?? null;
                         }
 
                         return $less !== null ? $fmt($less) : '';
@@ -265,18 +265,18 @@
                                                 </td>
                                             @endforeach
                                         </tr>
-                                        @if ($sugarIngredient && $sugarIngredient->id === $ingredient->id)
+                                        @if ($ingredient->is_sugar)
                                             <tr>
-                                                <td class="py-1 pr-3 text-charcoal opacity-75">Less sugar ({{ $ingredient->unit }})</td>
+                                                <td class="py-1 pr-3 pl-4 text-charcoal opacity-75">↳ {{ $ingredient->name }} saat Less sugar ({{ $ingredient->unit }})</td>
                                                 @foreach ($recipeSizes as $size)
                                                     <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                         <input
                                                             type="number"
                                                             step="0.01"
                                                             min="0"
-                                                            name="recipe_less_sugar[{{ $size }}]"
-                                                            value="{{ $lessSugarValue($size) }}"
-                                                            aria-label="Less sugar untuk {{ $size === '-' ? 'satu ukuran' : $size }}"
+                                                            name="recipe_less_sugar[{{ $size }}][{{ $ingredient->id }}]"
+                                                            value="{{ $lessSugarValue($size, $ingredient->id) }}"
+                                                            aria-label="{{ $ingredient->name }} saat Less sugar untuk {{ $size === '-' ? 'satu ukuran' : $size }}"
                                                             class="w-24 px-2 py-1 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
                                                         />
                                                     </td>

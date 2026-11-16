@@ -9,7 +9,6 @@ use App\Models\PoPeriodIngredient;
 use App\Models\ProductRecipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class IngredientController extends Controller
@@ -18,10 +17,7 @@ class IngredientController extends Controller
     {
         $data = $this->validated($request);
 
-        DB::transaction(function () use ($data) {
-            $this->clearOtherSugar($data['is_sugar'], null);
-            Ingredient::create($data);
-        });
+        Ingredient::create($data);
 
         return $this->backToList()->with('status', 'Bahan berhasil ditambahkan.');
     }
@@ -30,10 +26,7 @@ class IngredientController extends Controller
     {
         $data = $this->validated($request, $ingredient);
 
-        DB::transaction(function () use ($data, $ingredient) {
-            $this->clearOtherSugar($data['is_sugar'], $ingredient->getKey());
-            $ingredient->update($data);
-        });
+        $ingredient->update($data);
 
         return $this->backToList()->with('status', 'Bahan berhasil diubah.');
     }
@@ -68,21 +61,8 @@ class IngredientController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('ingredients', 'name')->ignore($ingredient?->getKey())],
             'unit' => ['required', 'in:g,ml'],
+            // Any number of ingredients can be sweeteners (gula cair, maple, simple syrup).
             'is_sugar' => ['boolean'],
         ]);
-    }
-
-    // At most one ingredient is the sugar.
-    private function clearOtherSugar(bool $isSugar, ?int $exceptId): void
-    {
-        if (! $isSugar) {
-            return;
-        }
-
-        $query = Ingredient::where('is_sugar', true);
-        if ($exceptId !== null) {
-            $query->whereKeyNot($exceptId);
-        }
-        $query->update(['is_sugar' => false]);
     }
 }

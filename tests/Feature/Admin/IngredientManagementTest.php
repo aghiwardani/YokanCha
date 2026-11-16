@@ -64,30 +64,25 @@ class IngredientManagementTest extends TestCase
         $this->assertDatabaseMissing('ingredients', ['name' => 'Es']);
     }
 
-    public function test_only_one_sugar_ingredient(): void
+    public function test_several_ingredients_can_be_sugar(): void
     {
         $this->actingAs(User::factory()->admin()->create());
-        $first = Ingredient::create(['name' => 'Gula', 'unit' => 'g', 'is_sugar' => true]);
+        $maple = Ingredient::create(['name' => 'Maple Syrup', 'unit' => 'ml', 'is_sugar' => true]);
 
         $this->post('/admin/ingredients', [
-            'name' => 'Gula Aren',
-            'unit' => 'g',
+            'name' => 'Simple Syrup',
+            'unit' => 'ml',
             'is_sugar' => '1',
         ])->assertRedirect('/admin/master#bahan');
 
-        $second = Ingredient::where('name', 'Gula Aren')->firstOrFail();
-        $this->assertTrue($second->is_sugar);
-        $this->assertFalse($first->fresh()->is_sugar);
+        $this->assertTrue(Ingredient::where('name', 'Simple Syrup')->firstOrFail()->is_sugar);
+        $this->assertTrue($maple->fresh()->is_sugar);
+        $this->assertSame(2, Ingredient::where('is_sugar', true)->count());
 
-        // Updating the first one back to sugar flips the second off.
-        $this->put("/admin/ingredients/{$first->id}", [
-            'name' => 'Gula',
-            'unit' => 'g',
-            'is_sugar' => '1',
-        ]);
+        // Unticking one leaves the other alone.
+        $this->put("/admin/ingredients/{$maple->id}", ['name' => 'Maple Syrup', 'unit' => 'ml']);
 
-        $this->assertTrue($first->fresh()->is_sugar);
-        $this->assertFalse($second->fresh()->is_sugar);
+        $this->assertFalse($maple->fresh()->is_sugar);
         $this->assertSame(1, Ingredient::where('is_sugar', true)->count());
     }
 

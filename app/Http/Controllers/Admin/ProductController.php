@@ -63,7 +63,7 @@ class ProductController extends Controller
      * doubles each amount). Only shown in the form; saved when submitted.
      *
      * @param  array<string, array<int, \App\Models\ProductRecipe>>  $recipes
-     * @return array<string, array{amounts: array<int, float>, less_sugar: float|null}>
+     * @return array<string, array{amounts: array<int, float>, less_sugar: array<int, float>}>
      */
     private function scaledRecipeDefaults(array $recipes, $sizes): array
     {
@@ -82,13 +82,13 @@ class ProductController extends Controller
 
             $factor = $size->volume_ml / $base->volume_ml;
             $amounts = [];
-            $lessSugar = null;
+            $lessSugar = [];
 
             foreach ($recipes[$base->name] as $ingredientId => $row) {
                 $amounts[$ingredientId] = round((float) $row->amount * $factor, 2);
 
                 if ($row->amount_less_sugar !== null && $row->ingredient?->is_sugar) {
-                    $lessSugar = round((float) $row->amount_less_sugar * $factor, 2);
+                    $lessSugar[$ingredientId] = round((float) $row->amount_less_sugar * $factor, 2);
                 }
             }
 
@@ -221,7 +221,8 @@ class ProductController extends Controller
     /**
      * Replace the product's recipe rows with the submitted grid. Only amounts
      * above zero are kept, only for the saved sizes (or '-' without sizes),
-     * and amount_less_sugar lives on the sugar ingredient's row alone.
+     * and amount_less_sugar (recipe_less_sugar[size][ingredient id]) is kept
+     * only on rows of ingredients marked as sugar; there can be several.
      */
     private function syncRecipes(Request $request, Product $product): void
     {
@@ -240,7 +241,7 @@ class ProductController extends Controller
                     continue;
                 }
 
-                $less = $lessSugar[$size] ?? null;
+                $less = is_array($lessSugar[$size] ?? null) ? ($lessSugar[$size][$ingredientId] ?? null) : null;
 
                 $product->recipes()->create([
                     'size' => $size,
