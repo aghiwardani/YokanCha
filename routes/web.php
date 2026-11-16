@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
@@ -50,6 +51,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+
+    Route::get('/ingredients', [IngredientController::class, 'index'])->name('ingredients');
+    Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
+    Route::put('/ingredients/{ingredient}', [IngredientController::class, 'update'])->name('ingredients.update');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');

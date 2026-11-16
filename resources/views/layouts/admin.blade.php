@@ -21,6 +21,13 @@
                 </a>
 
                 <a
+                    href="{{ route('admin.ingredients') }}"
+                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.ingredients*') ? 'text-brand' : '' }}"
+                >
+                    Bahan
+                </a>
+
+                <a
                     href="{{ route('admin.orders') }}"
                     class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.orders*') ? 'text-brand' : '' }}"
                 >
