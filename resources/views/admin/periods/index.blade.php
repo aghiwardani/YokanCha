@@ -108,7 +108,13 @@
                                 </span>
                             </div>
 
-                            <div class="flex gap-2">
+                            <div class="flex flex-wrap gap-2">
+                                <a
+                                    href="{{ route('admin.periods.stock', $period) }}"
+                                    class="px-4 py-2 border-2 border-brand text-charcoal font-semibold rounded-brand hover:bg-oat transition duration-200"
+                                >
+                                    Stok bahan
+                                </a>
                                 @if ($period->status !== 'open')
                                     <form action="{{ route('admin.periods.open', $period) }}" method="POST">
                                         @csrf

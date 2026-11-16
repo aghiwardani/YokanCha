@@ -45,6 +45,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/periods', [PoPeriodController::class, 'store'])->name('periods.store');
     Route::post('/periods/{period}/open', [PoPeriodController::class, 'open'])->name('periods.open');
     Route::post('/periods/{period}/close', [PoPeriodController::class, 'close'])->name('periods.close');
+    Route::get('/periods/{period}/stock', [PoPeriodController::class, 'stock'])->name('periods.stock');
+    Route::put('/periods/{period}/stock', [PoPeriodController::class, 'updateStock'])->name('periods.stock.update');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products');
     Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
