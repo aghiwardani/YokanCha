@@ -48,6 +48,28 @@ class Product extends Model
     }
 
     /**
+     * The product's sizes, smallest first by the size master's volume (sizes
+     * missing from the master fall back to a volume guessed from the name).
+     *
+     * @return array<int, string>
+     */
+    public function sizesSmallestFirst(): array
+    {
+        $sizes = array_values($this->size_options ?? []);
+
+        if (count($sizes) < 2) {
+            return $sizes;
+        }
+
+        $volumes = Size::whereIn('name', $sizes)->pluck('volume_ml', 'name');
+        $volumeOf = fn (string $size) => $volumes[$size] ?? Size::volumeFromName($size);
+
+        usort($sizes, fn ($a, $b) => $volumeOf($a) <=> $volumeOf($b));
+
+        return $sizes;
+    }
+
+    /**
      * Unit price for the given size label. Sizes without an explicit price
      * (or products without per-size pricing) use base_price.
      */

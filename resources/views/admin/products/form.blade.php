@@ -79,18 +79,51 @@
                     />
                 </div>
 
-                <div>
-                    <label for="size_options" class="block text-sm font-semibold text-charcoal mb-2">Ukuran</label>
-                    <input
-                        type="text"
-                        id="size_options"
-                        name="size_options"
-                        placeholder="Contoh: 250 ml=32000, 500 ml=60000, 1 liter=110000"
-                        value="{{ old('size_options', collect($product->size_options ?? [])->map(fn ($size) => isset(($product->size_prices ?? [])[$size]) ? $size.'='.$product->size_prices[$size] : $size)->implode(', ')) }}"
-                        class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('size_options') border-red-500 @enderror"
-                    />
-                    <p class="text-xs text-charcoal opacity-75 mt-1">Pisahkan dengan koma. Tulis harga per ukuran dengan "=", mis. <code>1 liter=110000</code>. Ukuran tanpa harga memakai Harga Dasar.</p>
-                </div>
+                <fieldset>
+                    <legend class="block text-sm font-semibold text-charcoal mb-2">Ukuran</legend>
+                    @if ($sizes->isEmpty())
+                        <p class="text-xs text-charcoal opacity-75">Belum ada ukuran. Tambahkan dulu di halaman <a href="{{ route('admin.sizes') }}" class="underline">Ukuran</a>.</p>
+                    @else
+                        @php
+                            $oldSizes = old('sizes');
+                            $sizeTicked = fn ($size) => is_array($oldSizes)
+                                ? ! empty($oldSizes[$size->id]['on'])
+                                : in_array($size->name, $product->size_options ?? [], true);
+                            $sizePrice = fn ($size) => is_array($oldSizes)
+                                ? ($oldSizes[$size->id]['price'] ?? '')
+                                : (($product->size_prices ?? [])[$size->name] ?? '');
+                        @endphp
+                        <div class="space-y-2">
+                            @foreach ($sizes as $size)
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <label class="flex items-center gap-2 min-w-[8rem] text-sm text-charcoal">
+                                        <input
+                                            type="checkbox"
+                                            name="sizes[{{ $size->id }}][on]"
+                                            value="1"
+                                            data-size-toggle="{{ $size->name }}"
+                                            @checked($sizeTicked($size))
+                                        />
+                                        {{ $size->name }}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="sizes[{{ $size->id }}][price]"
+                                        min="0"
+                                        placeholder="Harga (kosong = Harga Dasar)"
+                                        value="{{ $sizePrice($size) }}"
+                                        aria-label="Harga {{ $size->name }}"
+                                        class="w-56 px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
+                                    />
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Centang ukuran yang dijual. Ukuran tanpa harga memakai Harga Dasar. Di menu, ukuran terkecil yang masih tersedia otomatis terpilih.</p>
+                    @endif
+                    @error('sizes')
+                        <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </fieldset>
 
                 <div>
                     <label for="sweetness_options" class="block text-sm font-semibold text-charcoal mb-2">Tingkat Manis</label>
@@ -160,23 +193,33 @@
                 </div>
 
                 @php
-                    $recipeSizes = ! empty($product->size_options) ? $product->size_options : ['-'];
+                    // One column per master size (shown only while ticked, with JS),
+                    // plus "Satu ukuran" for a product sold without sizes.
+                    $recipeSizes = array_merge($sizes->pluck('name')->all(), ['-']);
                     $sugarIngredient = $ingredients->firstWhere('is_sugar', true);
                     $oldRecipe = old('recipe');
                     $oldLessSugar = old('recipe_less_sugar');
-                    $fmt = fn ($n) => rtrim(rtrim((string) $n, '0'), '.');
-                    $recipeValue = function ($size, $ingredientId) use ($oldRecipe, $recipes, $fmt) {
+                    $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+                    // Saved amount, else the amount scaled from the smallest saved size.
+                    $recipeValue = function ($size, $ingredientId) use ($oldRecipe, $recipes, $recipeDefaults, $fmt) {
                         if (is_array($oldRecipe)) {
                             return $oldRecipe[$size][$ingredientId] ?? '';
                         }
+                        if (isset($recipes[$size])) {
+                            return isset($recipes[$size][$ingredientId]) ? $fmt($recipes[$size][$ingredientId]->amount) : '';
+                        }
 
-                        return isset($recipes[$size][$ingredientId]) ? $fmt($recipes[$size][$ingredientId]->amount) : '';
+                        return isset($recipeDefaults[$size]['amounts'][$ingredientId]) ? $fmt($recipeDefaults[$size]['amounts'][$ingredientId]) : '';
                     };
-                    $lessSugarValue = function ($size) use ($oldLessSugar, $oldRecipe, $recipes, $sugarIngredient, $fmt) {
+                    $lessSugarValue = function ($size) use ($oldLessSugar, $oldRecipe, $recipes, $recipeDefaults, $sugarIngredient, $fmt) {
                         if (is_array($oldRecipe) || is_array($oldLessSugar)) {
                             return $oldLessSugar[$size] ?? '';
                         }
-                        $less = $sugarIngredient ? ($recipes[$size][$sugarIngredient->id]->amount_less_sugar ?? null) : null;
+                        if (isset($recipes[$size])) {
+                            $less = $sugarIngredient ? ($recipes[$size][$sugarIngredient->id]->amount_less_sugar ?? null) : null;
+                        } else {
+                            $less = $recipeDefaults[$size]['less_sugar'] ?? null;
+                        }
 
                         return $less !== null ? $fmt($less) : '';
                     };
@@ -193,7 +236,7 @@
                                     <tr class="text-left text-charcoal">
                                         <th class="py-2 pr-3 font-semibold">Bahan</th>
                                         @foreach ($recipeSizes as $size)
-                                            <th class="py-2 px-1 font-semibold">{{ $size === '-' ? 'Satu ukuran' : $size }}</th>
+                                            <th class="py-2 px-1 font-semibold" data-recipe-col="{{ $size }}">{{ $size === '-' ? 'Satu ukuran' : $size }}</th>
                                         @endforeach
                                     </tr>
                                 </thead>
@@ -202,7 +245,7 @@
                                         <tr>
                                             <td class="py-1 pr-3 text-charcoal">{{ $ingredient->name }} ({{ $ingredient->unit }})</td>
                                             @foreach ($recipeSizes as $size)
-                                                <td class="py-1 px-1">
+                                                <td class="py-1 px-1" data-recipe-col="{{ $size }}">
                                                     <input
                                                         type="number"
                                                         step="0.01"
@@ -219,7 +262,7 @@
                                             <tr>
                                                 <td class="py-1 pr-3 text-charcoal opacity-75">Less sugar ({{ $ingredient->unit }})</td>
                                                 @foreach ($recipeSizes as $size)
-                                                    <td class="py-1 px-1">
+                                                    <td class="py-1 px-1" data-recipe-col="{{ $size }}">
                                                         <input
                                                             type="number"
                                                             step="0.01"
@@ -237,7 +280,28 @@
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-xs text-charcoal opacity-75 mt-1">Kosongkan bahan yang tidak dipakai. Simpan dulu, lalu isi resep untuk ukuran baru.</p>
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Kosongkan bahan yang tidak dipakai. Resep ukuran yang belum diisi otomatis dihitung dari ukuran terkecil yang sudah punya resep (sesuai isi ml), silakan sesuaikan sebelum menyimpan.</p>
+                        <script>
+                            // Show only the recipe columns of ticked sizes; "Satu ukuran"
+                            // only when no size is ticked. Without JS every column shows.
+                            (function () {
+                                var toggles = Array.prototype.slice.call(document.querySelectorAll('[data-size-toggle]'));
+                                function sync() {
+                                    var anyTicked = false;
+                                    toggles.forEach(function (box) {
+                                        anyTicked = anyTicked || box.checked;
+                                        document.querySelectorAll('[data-recipe-col="' + box.dataset.sizeToggle + '"]').forEach(function (cell) {
+                                            cell.hidden = ! box.checked;
+                                        });
+                                    });
+                                    document.querySelectorAll('[data-recipe-col="-"]').forEach(function (cell) {
+                                        cell.hidden = anyTicked;
+                                    });
+                                }
+                                toggles.forEach(function (box) { box.addEventListener('change', sync); });
+                                sync();
+                            })();
+                        </script>
                     @endif
                 </div>
 

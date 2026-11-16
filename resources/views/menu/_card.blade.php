@@ -8,7 +8,7 @@
     $remaining = $availability[$item->id]['max'] ?? 0;
     $sizeStock = $availability[$item->id]['sizes'] ?? [];
     $soldOut = $remaining <= 0;
-    $sizes = $product->size_options ?: [];
+    $sizes = $product->sizesSmallestFirst();
     $sweetness = $product->sweetness_options ?: [];
     $firstSize = $sizes[0] ?? null;
     $firstEnabledSize = collect($sizes)->first(fn ($size) => ($sizeStock[$size] ?? 0) > 0);

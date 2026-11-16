@@ -28,6 +28,13 @@
                 </a>
 
                 <a
+                    href="{{ route('admin.sizes') }}"
+                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.sizes*') ? 'text-brand' : '' }}"
+                >
+                    Ukuran
+                </a>
+
+                <a
                     href="{{ route('admin.orders') }}"
                     class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.orders*') ? 'text-brand' : '' }}"
                 >

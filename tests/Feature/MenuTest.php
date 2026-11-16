@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
+use App\Models\Size;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\StocksMenu;
 use Tests\TestCase;
@@ -160,6 +161,32 @@ class MenuTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/value="1 liter"[^>]*disabled/s', $html);
         $this->assertMatchesRegularExpression('/value="1 liter"[^>]*checked/s', $html);
         $this->assertDoesNotMatchRegularExpression('/value="250 ml"[^>]*checked/s', $html);
+    }
+
+    public function test_sizes_show_smallest_first_and_smallest_is_preselected(): void
+    {
+        Size::create(['name' => '250 ml', 'volume_ml' => 250]);
+        Size::create(['name' => '500 ml', 'volume_ml' => 500]);
+        Size::create(['name' => '1 liter', 'volume_ml' => 1000]);
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+        // Saved out of order, e.g. before the size master existed.
+        $product = Product::create([
+            'name' => 'Matcha Oat',
+            'base_price' => 32000,
+            'size_options' => ['1 liter', '500 ml', '250 ml'],
+        ]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 5000);
+        foreach (['250 ml' => 200, '500 ml' => 400, '1 liter' => 800] as $size => $amount) {
+            $this->recipe($product, $size, $milk, $amount);
+        }
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/value="250 ml".*value="500 ml".*value="1 liter"/s', $html);
+        $this->assertMatchesRegularExpression('/value="250 ml"[^>]*checked/s', $html);
+        $this->assertDoesNotMatchRegularExpression('/value="1 liter"[^>]*checked/s', $html);
     }
 
     public function test_landing_says_matcha_is_ceremonial_blend(): void

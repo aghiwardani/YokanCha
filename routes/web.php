@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\SizeController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -57,6 +58,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/ingredients', [IngredientController::class, 'index'])->name('ingredients');
     Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
     Route::put('/ingredients/{ingredient}', [IngredientController::class, 'update'])->name('ingredients.update');
+
+    Route::get('/sizes', [SizeController::class, 'index'])->name('sizes');
+    Route::post('/sizes', [SizeController::class, 'store'])->name('sizes.store');
+    Route::put('/sizes/{size}', [SizeController::class, 'update'])->name('sizes.update');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');

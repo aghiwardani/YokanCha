@@ -56,9 +56,13 @@ Run `php artisan config:clear` after changing `.env`.
 Kalau database sudah berjalan dengan kuota botol lama, ikuti langkah ini:
 
 1. Jalankan `php artisan migrate`.
-2. Di admin **Bahan**, buat daftar bahan (tandai satu bahan sebagai gula).
-3. Di tiap produk, isi resep per ukuran.
-4. Di periode yang sedang buka, buka **Stok bahan** lalu isi jumlah yang TERSISA sekarang.
+2. Di admin **Ukuran**, cek daftar ukuran dan isi ml-nya. Migrasi sudah mengisinya dari
+   ukuran yang dipakai produk, ditambah 250 ml, 500 ml, dan 1 liter. Kalau ada dua nama
+   untuk ukuran yang sama (mis. "250ml" dan "250 ml"), centang satu saja di tiap produk.
+3. Di admin **Bahan**, buat daftar bahan (tandai satu bahan sebagai gula).
+4. Di tiap produk, centang ukuran yang dijual beserta harganya, lalu isi resep per ukuran.
+   Resep ukuran yang belum diisi otomatis dihitung dari ukuran terkecil yang sudah punya resep.
+5. Di periode yang sedang buka, buka **Stok bahan** lalu isi jumlah yang TERSISA sekarang.
    Pesanan lama tidak tercatat memakai bahan, dan pesanan lama yang dibatalkan tidak
    mengembalikan bahan.
 

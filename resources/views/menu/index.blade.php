@@ -16,6 +16,7 @@
     // "250ml" and "250 ml" are the same size; list each once.
     $sizeLabels = $items->flatMap(fn ($item) => $item->product->size_options ?? [])
         ->unique(fn ($size) => strtolower(str_replace(' ', '', $size)))
+        ->sortBy(fn ($size) => \App\Models\Size::where('name', $size)->value('volume_ml') ?? \App\Models\Size::volumeFromName($size))
         ->values();
     $menuMeta = $items->count().' varian'.($sizeLabels->isNotEmpty() ? ' · '.$sizeLabels->implode(' & ') : '');
 

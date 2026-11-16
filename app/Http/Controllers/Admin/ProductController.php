@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
 use App\Models\Product;
+use App\Models\Size;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,11 +24,7 @@ class ProductController extends Controller
 
     public function create(): View
     {
-        return view('admin.products.form', [
-            'product' => new Product(),
-            'ingredients' => Ingredient::orderBy('name')->get(),
-            'recipes' => [],
-        ]);
+        return $this->form(new Product());
     }
 
     public function store(Request $request): RedirectResponse
@@ -44,16 +41,66 @@ class ProductController extends Controller
 
     public function edit(Product $product): View
     {
+        return $this->form($product);
+    }
+
+    private function form(Product $product): View
+    {
         $recipes = [];
         foreach ($product->recipes as $row) {
             $recipes[$row->size][$row->ingredient_id] = $row;
         }
 
+        $sizes = Size::smallestFirst()->get();
+
         return view('admin.products.form', [
             'product' => $product,
             'ingredients' => Ingredient::orderBy('name')->get(),
+            'sizes' => $sizes,
             'recipes' => $recipes,
+            'recipeDefaults' => $this->scaledRecipeDefaults($recipes, $sizes),
         ]);
+    }
+
+    /**
+     * Suggested recipe for every master size that has no saved recipe yet:
+     * the smallest saved size's amounts scaled by volume (250 ml → 500 ml
+     * doubles each amount). Only shown in the form; saved when submitted.
+     *
+     * @param  array<string, array<int, \App\Models\ProductRecipe>>  $recipes
+     * @return array<string, array{amounts: array<int, float>, less_sugar: float|null}>
+     */
+    private function scaledRecipeDefaults(array $recipes, $sizes): array
+    {
+        $base = $sizes->first(fn (Size $size) => $size->volume_ml > 0 && isset($recipes[$size->name]));
+
+        if (! $base) {
+            return [];
+        }
+
+        $defaults = [];
+
+        foreach ($sizes as $size) {
+            if (isset($recipes[$size->name]) || $size->volume_ml <= 0) {
+                continue;
+            }
+
+            $factor = $size->volume_ml / $base->volume_ml;
+            $amounts = [];
+            $lessSugar = null;
+
+            foreach ($recipes[$base->name] as $ingredientId => $row) {
+                $amounts[$ingredientId] = round((float) $row->amount * $factor, 2);
+
+                if ($row->amount_less_sugar !== null) {
+                    $lessSugar = round((float) $row->amount_less_sugar * $factor, 2);
+                }
+            }
+
+            $defaults[$size->name] = ['amounts' => $amounts, 'less_sugar' => $lessSugar];
+        }
+
+        return $defaults;
     }
 
     public function update(Request $request, Product $product): RedirectResponse
@@ -98,7 +145,14 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'base_price' => ['required', 'integer', 'min:0'],
-            'size_options' => ['nullable', 'string'],
+            'sizes' => ['nullable', 'array', function (string $attribute, mixed $value, \Closure $fail) {
+                $ids = array_map('intval', array_keys((array) $value));
+                if (Size::whereIn('id', $ids)->count() !== count(array_unique($ids))) {
+                    $fail('Ada ukuran yang tidak dikenal. Muat ulang halaman, lalu coba lagi.');
+                }
+            }],
+            'sizes.*.on' => ['nullable'],
+            'sizes.*.price' => ['nullable', 'integer', 'min:0'],
             'sweetness_options' => ['nullable', 'string'],
             'tag' => ['nullable', 'string', 'max:40'],
             'tone' => ['nullable', 'in:'.implode(',', Product::TONES)],
@@ -108,7 +162,7 @@ class ProductController extends Controller
             'recipe_less_sugar' => ['nullable', 'array', $amountsRule],
         ]);
 
-        [$sizes, $sizePrices] = $this->parseSizes($validated['size_options'] ?? null);
+        [$sizes, $sizePrices] = $this->tickedSizes($validated['sizes'] ?? []);
 
         return [
             'category' => $validated['category'] ?? 'minuman',
@@ -160,28 +214,25 @@ class ProductController extends Controller
     }
 
     /**
-     * Parse "250 ml=32000, 1 liter=110000" into size names and a size => price
-     * map. Entries without "=price" are kept as sizes priced at base_price.
+     * Turn the size checkboxes (sizes[<size id>][on|price]) into size names,
+     * smallest first, and a size => price map. A ticked size without a price
+     * is sold at base_price; a price on an unticked size is ignored.
      *
      * @return array{0: array<int, string>, 1: array<string, int>}
      */
-    private function parseSizes(?string $value): array
+    private function tickedSizes(array $input): array
     {
+        $ticked = array_filter($input, fn ($row) => ! empty($row['on']));
+
         $sizes = [];
         $prices = [];
 
-        foreach ($this->splitOptions($value) as $entry) {
-            $parts = array_map('trim', explode('=', $entry, 2));
-            $name = $parts[0];
+        foreach (Size::smallestFirst()->whereIn('id', array_keys($ticked))->get() as $size) {
+            $sizes[] = $size->name;
 
-            if ($name === '') {
-                continue;
-            }
-
-            $sizes[] = $name;
-
-            if (isset($parts[1]) && ctype_digit($digits = str_replace(['.', ' '], '', $parts[1]))) {
-                $prices[$name] = (int) $digits;
+            $price = $ticked[$size->id]['price'] ?? null;
+            if ($price !== null && $price !== '') {
+                $prices[$size->name] = (int) $price;
             }
         }
 

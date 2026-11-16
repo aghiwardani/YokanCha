@@ -8,6 +8,7 @@ use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use App\Models\ProductRecipe;
+use App\Models\Size;
 use Illuminate\Database\Seeder;
 
 /**
@@ -86,6 +87,10 @@ class MenuDemoSeeder extends Seeder
             'Cashew Milk' => ['ml', 2000, false],
             'Gula cair' => ['ml', 500, true],
         ];
+        foreach (['250 ml' => 250, '500 ml' => 500, '1 liter' => 1000] as $name => $volume) {
+            Size::firstOrCreate(['name' => $name], ['volume_ml' => $volume]);
+        }
+
         $ingredients = [];
         foreach ($ingredientDefs as $name => [$unit, $stock, $isSugar]) {
             $ingredients[$name] = Ingredient::updateOrCreate(
