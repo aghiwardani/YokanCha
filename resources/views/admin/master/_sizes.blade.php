@@ -91,8 +91,8 @@
                                             id="size_name_{{ $size->id }}"
                                             name="name"
                                             value="{{ $failed ? old('name') : $size->name }}"
-                                            @if ($productCount) readonly aria-describedby="size_name_note_{{ $size->id }}" @endif
-                                            class="{{ $field }} {{ $productCount ? 'bg-oat text-muted' : '' }}"
+                                            @if ($productCount) aria-describedby="size_name_note_{{ $size->id }}" @endif
+                                            class="{{ $field }}"
                                         />
                                     </div>
                                     <div>
@@ -104,7 +104,7 @@
                                     </button>
                                 </div>
                                 @if ($productCount)
-                                    <p id="size_name_note_{{ $size->id }}" class="mt-2 text-xs text-muted">Nama tidak bisa diganti karena sudah dipakai produk. Isi ml tetap bisa diubah.</p>
+                                    <p id="size_name_note_{{ $size->id }}" class="mt-2 text-xs text-muted">Dipakai {{ $productCount }} produk. Kalau namanya diganti, ukuran, harga, dan resep di produk itu ikut berganti nama. Pesanan lama tetap memakai nama lama.</p>
                                 @endif
                             </form>
 

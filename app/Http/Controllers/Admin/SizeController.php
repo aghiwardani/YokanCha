@@ -7,8 +7,8 @@ use App\Models\Size;
 use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class SizeController extends Controller
 {
@@ -23,17 +23,17 @@ class SizeController extends Controller
     {
         $data = $this->validated($request, $size);
 
-        // Products, recipes and past orders refer to the size by name, so a
-        // size that is already sold keeps its name; its volume can change.
-        if ($data['name'] !== $size->name && $size->isUsed()) {
-            throw ValidationException::withMessages([
-                'name' => 'Ukuran ini sudah dipakai produk, jadi namanya tidak bisa diubah.',
-            ]);
-        }
+        // Products and recipes refer to the size by name, so a new name is
+        // carried into them in the same transaction.
+        $touched = DB::transaction(function () use ($size, $data) {
+            $size->update(['volume_ml' => $data['volume_ml']]);
 
-        $size->update($data);
+            return $size->renameEverywhere($data['name']);
+        });
 
-        return $this->backToList()->with('status', 'Ukuran berhasil diubah.');
+        $message = 'Ukuran berhasil diubah.'.($touched ? " {$touched} produk ikut diperbarui." : '');
+
+        return $this->backToList()->with('status', $message);
     }
 
     public function destroy(Size $size): RedirectResponse

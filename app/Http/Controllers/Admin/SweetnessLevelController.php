@@ -7,8 +7,8 @@ use App\Models\SweetnessLevel;
 use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class SweetnessLevelController extends Controller
 {
@@ -23,17 +23,17 @@ class SweetnessLevelController extends Controller
     {
         $data = $this->validated($request, $level);
 
-        // Products, carts and past orders refer to the level by name, so a
-        // level that is already offered keeps its name; its percent can change.
-        if ($data['name'] !== $level->name && $level->isUsed()) {
-            throw ValidationException::withMessages([
-                'name' => 'Tingkat manis ini sudah dipakai produk, jadi namanya tidak bisa diubah.',
-            ]);
-        }
+        // Products refer to the level by name, so a new name is carried into
+        // them in the same transaction.
+        $touched = DB::transaction(function () use ($level, $data) {
+            $level->update(['percent' => $data['percent']]);
 
-        $level->update($data);
+            return $level->renameEverywhere($data['name']);
+        });
 
-        return $this->backToList()->with('status', 'Tingkat manis berhasil diubah.');
+        $message = 'Tingkat manis berhasil diubah.'.($touched ? " {$touched} produk ikut diperbarui." : '');
+
+        return $this->backToList()->with('status', $message);
     }
 
     public function destroy(SweetnessLevel $level): RedirectResponse

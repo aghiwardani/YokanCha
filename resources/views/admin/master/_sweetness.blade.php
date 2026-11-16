@@ -97,8 +97,8 @@
                                             id="sweetness_name_{{ $level->id }}"
                                             name="name"
                                             value="{{ $failed ? old('name') : $level->name }}"
-                                            @if ($productCount) readonly aria-describedby="sweetness_name_note_{{ $level->id }}" @endif
-                                            class="{{ $field }} {{ $productCount ? 'bg-oat text-muted' : '' }}"
+                                            @if ($productCount) aria-describedby="sweetness_name_note_{{ $level->id }}" @endif
+                                            class="{{ $field }}"
                                         />
                                     </div>
                                     <div>
@@ -110,7 +110,7 @@
                                     </button>
                                 </div>
                                 @if ($productCount)
-                                    <p id="sweetness_name_note_{{ $level->id }}" class="mt-2 text-xs text-muted">Nama tidak bisa diganti karena sudah dipakai produk. Persennya tetap bisa diubah, dan langsung berlaku untuk pesanan berikutnya.</p>
+                                    <p id="sweetness_name_note_{{ $level->id }}" class="mt-2 text-xs text-muted">Dipakai {{ $productCount }} produk. Kalau namanya diganti, pilihan manis di produk itu ikut berganti nama. Perubahan persen langsung berlaku untuk pesanan berikutnya; pesanan lama tetap seperti saat dipesan.</p>
                                 @endif
                             </form>
 

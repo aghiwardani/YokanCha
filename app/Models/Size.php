@@ -57,6 +57,51 @@ class Size extends Model
     }
 
     /**
+     * Give this size a new name and carry it into everything that refers to
+     * it by name: products' size lists and prices, and recipes. Past orders
+     * keep the name they were placed with. Returns how many products changed.
+     * Call inside a transaction.
+     */
+    public function renameEverywhere(string $newName): int
+    {
+        $oldName = $this->name;
+        $this->update(['name' => $newName]);
+
+        if ($oldName === $newName) {
+            return 0;
+        }
+
+        $touched = 0;
+
+        foreach (Product::whereNotNull('size_options')->get() as $product) {
+            $sizes = $product->size_options ?? [];
+            if (! in_array($oldName, $sizes, true)) {
+                continue;
+            }
+
+            $prices = $product->size_prices ?? [];
+            if (array_key_exists($oldName, $prices)) {
+                $prices[$newName] ??= $prices[$oldName];
+                unset($prices[$oldName]);
+            }
+
+            $product->update([
+                'size_options' => array_values(array_unique(array_map(fn ($size) => $size === $oldName ? $newName : $size, $sizes))),
+                'size_prices' => $prices ?: null,
+            ]);
+
+            // A recipe row already saved under the new name wins over the old one.
+            $taken = ProductRecipe::where('product_id', $product->id)->where('size', $newName)->pluck('ingredient_id');
+            ProductRecipe::where('product_id', $product->id)->where('size', $oldName)->whereIn('ingredient_id', $taken)->delete();
+            ProductRecipe::where('product_id', $product->id)->where('size', $oldName)->update(['size' => $newName]);
+
+            $touched++;
+        }
+
+        return $touched;
+    }
+
+    /**
      * Whether any product currently sells this size.
      */
     public function isUsed(): bool

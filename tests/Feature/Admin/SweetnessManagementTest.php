@@ -60,17 +60,33 @@ class SweetnessManagementTest extends TestCase
         $this->assertDatabaseCount('sweetness_levels', 0);
     }
 
-    public function test_level_offered_by_a_product_keeps_its_name_and_cannot_be_deleted(): void
+    public function test_renaming_a_level_updates_the_products_that_offer_it(): void
+    {
+        $level = $this->sweetness('Less sugar', 50);
+        $this->sweetness('Manis normal', 100);
+        $latte = Product::factory()->create(['sweetness_options' => ['Less sugar', 'Manis normal']]);
+        $murni = Product::factory()->create(['sweetness_options' => []]);
+
+        $this->actingAs($this->admin())
+            ->put("/admin/sweetness/{$level->id}", ['name' => 'Kurang manis', 'percent' => '50'])
+            ->assertRedirect('/admin/master#manis')
+            ->assertSessionHas('status', 'Tingkat manis berhasil diubah. 1 produk ikut diperbarui.');
+
+        $this->assertSame('Kurang manis', $level->fresh()->name);
+        $this->assertSame(['Kurang manis', 'Manis normal'], $latte->fresh()->sweetness_options);
+        $this->assertSame([], $murni->fresh()->sweetness_options);
+    }
+
+    public function test_level_offered_by_a_product_cannot_be_deleted(): void
     {
         $level = $this->sweetness('Less sugar', 50);
         Product::factory()->create(['sweetness_options' => ['Less sugar']]);
-        $this->actingAs($this->admin());
 
-        $this->put("/admin/sweetness/{$level->id}", ['name' => 'Kurang manis', 'percent' => '50'])
-            ->assertSessionHasErrors('name');
-        $this->delete("/admin/sweetness/{$level->id}")->assertSessionHas('error');
+        $this->actingAs($this->admin())
+            ->delete("/admin/sweetness/{$level->id}")
+            ->assertSessionHas('error');
 
-        $this->assertSame('Less sugar', $level->fresh()->name);
+        $this->assertModelExists($level);
     }
 
     public function test_menu_lists_levels_least_sweet_first_and_preselects_normal(): void
