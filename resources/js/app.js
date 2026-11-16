@@ -99,3 +99,70 @@ document.addEventListener('submit', async (event) => {
         }
     }
 });
+
+// Admin amount fields ([data-number]; "int" = whole numbers only): show the
+// Indonesian format while typing ("32.000", "2,5") and submit plain numbers
+// ("32000", "2.5") so the server reads them as usual.
+const formatAmount = (text, allowDecimal) => {
+    const [whole, ...fraction] = text.replace(/[^\d,]/g, '').split(',');
+    const grouped = whole.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decimals = allowDecimal && fraction.length ? `,${fraction.join('').slice(0, 2)}` : '';
+
+    return grouped + decimals;
+};
+
+const plainAmount = (text) => text.replace(/\./g, '').replace(',', '.');
+
+const formatField = (input, keepCaret) => {
+    const allowDecimal = input.dataset.number !== 'int';
+    const caret = input.selectionStart ?? input.value.length;
+    // Characters that matter (digits and the decimal comma) before the caret.
+    const significantBefore = input.value.slice(0, caret).replace(/[^\d,]/g, '').length;
+
+    input.value = formatAmount(input.value, allowDecimal);
+
+    if (keepCaret && document.activeElement === input) {
+        let position = 0;
+        let seen = 0;
+        while (position < input.value.length && seen < significantBefore) {
+            if (/[\d,]/.test(input.value[position])) {
+                seen += 1;
+            }
+            position += 1;
+        }
+        input.setSelectionRange(position, position);
+    }
+};
+
+document.querySelectorAll('input[data-number]').forEach((input) => {
+    // Values rendered by the server are plain ("2.5", "32000").
+    input.value = formatAmount(input.value.replace('.', ','), input.dataset.number !== 'int');
+});
+
+document.addEventListener('input', (event) => {
+    const input = event.target;
+
+    if (!(input instanceof HTMLInputElement) || !input.matches('[data-number]')) {
+        return;
+    }
+
+    // Thousand dots are added automatically, so a "." typed in a decimal field
+    // means the decimal mark: "2.5" becomes "2,5", not 25.
+    if (event.data === '.' && input.dataset.number !== 'int' && !input.value.includes(',')) {
+        const caret = input.selectionStart ?? input.value.length;
+        input.value = `${input.value.slice(0, caret - 1)},${input.value.slice(caret)}`;
+        input.setSelectionRange(caret, caret);
+    }
+
+    formatField(input, true);
+});
+
+document.addEventListener('submit', (event) => {
+    if (event.defaultPrevented || !(event.target instanceof HTMLFormElement)) {
+        return;
+    }
+
+    event.target.querySelectorAll('input[data-number]').forEach((input) => {
+        input.value = plainAmount(input.value);
+    });
+});

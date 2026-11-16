@@ -171,6 +171,23 @@ class ProductManagementTest extends TestCase
         $this->assertSame(2, $product->recipes()->count());
     }
 
+    public function test_amounts_typed_the_indonesian_way_are_read_correctly(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $matcha = $this->ingredient('Matcha', 'g');
+        $milk = $this->ingredient('Susu', 'ml');
+
+        $this->post('/admin/products', $this->productPayload([
+            'base_price' => '1.250.000',
+            'recipe' => ['250 ml' => [$matcha->id => '2,5', $milk->id => '1.000']],
+        ]))->assertRedirect('/admin/master#produk')->assertSessionHasNoErrors();
+
+        $product = Product::where('name', 'Maple Matcha Latte')->first();
+        $this->assertSame(1250000, $product->base_price);
+        $this->assertEquals(2.5, $product->recipes()->where('ingredient_id', $matcha->id)->value('amount'));
+        $this->assertEquals(1000, $product->recipes()->where('ingredient_id', $milk->id)->value('amount'));
+    }
+
     public function test_each_sugar_ingredient_has_its_own_less_sugar_amount(): void
     {
         $this->actingAs(User::factory()->admin()->create());

@@ -28,7 +28,7 @@
             </div>
             <div>
                 <label for="new_size_volume" class="mb-1 block text-xs font-bold text-muted">Isi (ml)</label>
-                <input type="number" id="new_size_volume" name="volume_ml" min="1" placeholder="2000" value="{{ $sizeAddOld('volume_ml') }}" class="{{ $field }}" />
+                <input type="text" inputmode="numeric" data-number="int" id="new_size_volume" name="volume_ml" min="1" placeholder="2000" value="{{ $sizeAddOld('volume_ml') }}" class="{{ $field }}" />
             </div>
             <button type="submit" class="rounded-brand bg-cta px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cta focus-visible:ring-offset-2">
                 Tambah ukuran
@@ -97,7 +97,7 @@
                                     </div>
                                     <div>
                                         <label for="size_volume_{{ $size->id }}" class="mb-1 block text-xs font-bold text-muted">Isi (ml)</label>
-                                        <input type="number" id="size_volume_{{ $size->id }}" name="volume_ml" min="1" value="{{ $failed ? old('volume_ml') : $size->volume_ml }}" class="{{ $field }}" />
+                                        <input type="text" inputmode="numeric" data-number="int" id="size_volume_{{ $size->id }}" name="volume_ml" min="1" value="{{ $failed ? old('volume_ml') : $size->volume_ml }}" class="{{ $field }}" />
                                     </div>
                                     <button type="submit" class="rounded-brand bg-brand px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
                                         Simpan perubahan

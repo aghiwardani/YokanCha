@@ -43,6 +43,15 @@ class SizeManagementTest extends TestCase
         $this->assertDatabaseHas('sizes', ['name' => '500 ml', 'volume_ml' => 500]);
     }
 
+    public function test_volume_typed_with_a_thousand_dot_is_read_correctly(): void
+    {
+        $this->actingAs($this->admin())
+            ->post('/admin/sizes', ['_form' => 'size-new', 'name' => '1 liter', 'volume_ml' => '1.000'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('sizes', ['name' => '1 liter', 'volume_ml' => 1000]);
+    }
+
     public function test_size_name_must_be_unique_and_volume_positive(): void
     {
         Size::create(['name' => '500 ml', 'volume_ml' => 500]);

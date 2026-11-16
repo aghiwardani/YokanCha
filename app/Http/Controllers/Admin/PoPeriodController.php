@@ -8,6 +8,7 @@ use App\Models\PoPeriod;
 use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
+use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -110,6 +111,11 @@ class PoPeriodController extends Controller
 
     public function updateStock(Request $request, PoPeriod $period): RedirectResponse
     {
+        // Stock may arrive typed the Indonesian way ("2.000", "2,5").
+        if ($request->has('stock')) {
+            $request->merge(['stock' => Number::normalizeAll($request->input('stock'))]);
+        }
+
         $request->validate([
             'stock' => ['nullable', 'array'],
             'stock.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],

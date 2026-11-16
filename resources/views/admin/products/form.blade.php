@@ -70,7 +70,7 @@
                 <div>
                     <label for="base_price" class="block text-sm font-semibold text-charcoal mb-2">Harga Dasar</label>
                     <input
-                        type="number"
+                        type="text" inputmode="numeric" data-number="int"
                         id="base_price"
                         name="base_price"
                         min="0"
@@ -107,7 +107,7 @@
                                         {{ $size->name }}
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text" inputmode="numeric" data-number="int"
                                         name="sizes[{{ $size->id }}][price]"
                                         min="0"
                                         placeholder="Harga (kosong = Harga Dasar)"
@@ -254,7 +254,7 @@
                                             @foreach ($recipeSizes as $size)
                                                 <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                     <input
-                                                        type="number"
+                                                        type="text" inputmode="decimal" data-number
                                                         step="0.01"
                                                         min="0"
                                                         name="recipe[{{ $size }}][{{ $ingredient->id }}]"
@@ -271,7 +271,7 @@
                                                 @foreach ($recipeSizes as $size)
                                                     <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                         <input
-                                                            type="number"
+                                                            type="text" inputmode="decimal" data-number
                                                             step="0.01"
                                                             min="0"
                                                             name="recipe_less_sugar[{{ $size }}][{{ $ingredient->id }}]"

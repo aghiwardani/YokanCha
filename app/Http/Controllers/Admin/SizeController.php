@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Size;
+use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -53,6 +54,11 @@ class SizeController extends Controller
 
     private function validated(Request $request, ?Size $size = null): array
     {
+        // "1.000" ml typed with a thousands dot.
+        if ($request->has('volume_ml')) {
+            $request->merge(['volume_ml' => Number::normalize($request->input('volume_ml'))]);
+        }
+
         return $request->validate([
             'name' => ['required', 'string', 'max:50', Rule::unique('sizes', 'name')->ignore($size?->getKey())],
             'volume_ml' => ['required', 'integer', 'min:1', 'max:100000'],

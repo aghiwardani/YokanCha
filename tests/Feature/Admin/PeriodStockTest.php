@@ -41,6 +41,31 @@ class PeriodStockTest extends TestCase
         $this->assertDatabaseHas('po_period_products', ['po_period_id' => $period->id, 'product_id' => $product->id]);
     }
 
+    public function test_stock_typed_with_thousand_dots_and_decimal_comma_is_read_correctly(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+        $matcha = $this->ingredient('Matcha', 'g');
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'stock' => [$milk->id => '2.000', $matcha->id => '150,5'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertEquals(2000, PoPeriodIngredient::where('ingredient_id', $milk->id)->value('stock'));
+        $this->assertEquals(150.5, PoPeriodIngredient::where('ingredient_id', $matcha->id)->value('stock'));
+    }
+
+    public function test_stock_page_marks_amount_fields_for_thousand_separators(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+
+        $this->get("/admin/periods/{$period->id}/stock")
+            ->assertOk()
+            ->assertSee('name="stock['.$milk->id.']"', false)
+            ->assertSee('data-number', false);
+    }
+
     public function test_stock_above_column_limit_is_rejected(): void
     {
         $period = PoPeriod::factory()->create();

@@ -7,6 +7,7 @@ use App\Models\Ingredient;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Size;
+use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -142,15 +143,20 @@ class ProductController extends Controller
 
     private function validateProduct(Request $request, ?Product $existing = null): array
     {
-        // Prices may be typed the Indonesian way ("32.000").
+        // Amounts may arrive typed the Indonesian way ("32.000", "2,5").
         $sizesInput = $request->input('sizes');
         if (is_array($sizesInput)) {
             foreach ($sizesInput as $id => $row) {
-                if (is_array($row) && isset($row['price']) && is_string($row['price'])) {
-                    $sizesInput[$id]['price'] = str_replace(['.', ' '], '', $row['price']);
+                if (is_array($row) && isset($row['price'])) {
+                    $sizesInput[$id]['price'] = Number::normalize($row['price']);
                 }
             }
             $request->merge(['sizes' => $sizesInput]);
+        }
+        foreach (['base_price', 'recipe', 'recipe_less_sugar'] as $key) {
+            if ($request->has($key)) {
+                $request->merge([$key => Number::normalizeAll($request->input($key))]);
+            }
         }
 
         // Size names may contain dots ("1.5 liter"), which break wildcard rules,

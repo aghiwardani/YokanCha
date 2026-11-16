@@ -65,7 +65,7 @@
                                     {{ $ingredient->name }} <span class="font-normal opacity-75">({{ $ingredient->unit }})</span>
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text" inputmode="decimal" data-number
                                     step="0.01"
                                     min="0"
                                     id="stock_{{ $ingredient->id }}"
