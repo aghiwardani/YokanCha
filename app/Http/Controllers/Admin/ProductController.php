@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\PoPeriod;
-use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,11 +13,9 @@ class ProductController extends Controller
     public function index(): View
     {
         $products = Product::orderBy('name')->get();
-        $periods = PoPeriod::orderByDesc('created_at')->get();
 
         return view('admin.products.index', [
             'products' => $products,
-            'periods' => $periods,
         ]);
     }
 
@@ -53,26 +49,6 @@ class ProductController extends Controller
         $product->update($validated);
 
         return redirect()->route('admin.products')->with('status', 'Produk berhasil diubah.');
-    }
-
-    public function setQuota(Request $request, Product $product): RedirectResponse
-    {
-        $validated = $request->validate([
-            'po_period_id' => ['required', 'exists:po_periods,id'],
-            'quota' => ['required', 'integer', 'min:0'],
-        ]);
-
-        PoPeriodProduct::updateOrCreate(
-            [
-                'po_period_id' => $validated['po_period_id'],
-                'product_id' => $product->id,
-            ],
-            [
-                'quota' => $validated['quota'],
-            ]
-        );
-
-        return redirect()->route('admin.products')->with('status', 'Kuota berhasil disimpan.');
     }
 
     private function validateProduct(Request $request): array

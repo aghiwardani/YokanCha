@@ -60,9 +60,9 @@ class OrderController extends Controller
             'order_status' => ['required', 'in:new,diproses,siap_diambil,selesai'],
         ]);
 
-        // A cancelled order's quota has already been released. Transitioning
+        // A cancelled order's stock has already been returned. Transitioning
         // it to any other status would make it "live" again without
-        // re-reserving quota, so cancelled orders can never be revived here.
+        // re-reserving stock, so cancelled orders can never be revived here.
         if ($order->order_status === 'cancelled') {
             throw ValidationException::withMessages([
                 'order_status' => 'Pesanan yang sudah dibatalkan tidak dapat diubah statusnya.',
@@ -79,7 +79,7 @@ class OrderController extends Controller
     {
         $wasCancelled = DB::transaction(function () use ($order) {
             // Re-fetch and lock the order row so two near-simultaneous cancel
-            // requests can't both pass the guard and both release quota.
+            // requests can't both pass the guard and both return stock.
             $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
             if (in_array($locked->order_status, ['cancelled', 'selesai'], true)) {

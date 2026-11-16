@@ -3,7 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\PoPeriod;
-use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,7 +62,7 @@ class ProductManagementTest extends TestCase
         $this->assertSame(1, $product->sort_order);
     }
 
-    public function test_admin_can_set_quota_for_period(): void
+    public function test_quota_route_is_gone(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
@@ -75,46 +74,7 @@ class ProductManagementTest extends TestCase
             'quota' => 50,
         ]);
 
-        $response->assertRedirect('/admin/products');
-
-        $this->assertDatabaseHas('po_period_products', [
-            'po_period_id' => $period->id,
-            'product_id' => $product->id,
-            'quota' => 50,
-        ]);
-    }
-
-    public function test_admin_can_set_quota_upserts_without_touching_ordered_qty(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
-
-        $product = Product::factory()->create();
-        $period = PoPeriod::factory()->create();
-
-        PoPeriodProduct::create([
-            'po_period_id' => $period->id,
-            'product_id' => $product->id,
-            'quota' => 20,
-            'ordered_qty' => 5,
-        ]);
-
-        $response = $this->post("/admin/products/{$product->id}/quota", [
-            'po_period_id' => $period->id,
-            'quota' => 80,
-        ]);
-
-        $response->assertRedirect('/admin/products');
-
-        $this->assertDatabaseHas('po_period_products', [
-            'po_period_id' => $period->id,
-            'product_id' => $product->id,
-            'quota' => 80,
-            'ordered_qty' => 5,
-        ]);
-
-        $this->assertSame(1, PoPeriodProduct::where('product_id', $product->id)
-            ->where('po_period_id', $period->id)
-            ->count());
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
 
     public function test_admin_can_edit_product(): void

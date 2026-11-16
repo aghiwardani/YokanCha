@@ -38,7 +38,7 @@ class StockServiceTest extends TestCase
             'size_options' => $sizes, 'sweetness_options' => $sweet,
         ]);
         $ppp = PoPeriodProduct::create([
-            'po_period_id' => $this->period->id, 'product_id' => $product->id, 'quota' => 0,
+            'po_period_id' => $this->period->id, 'product_id' => $product->id,
         ]);
 
         return [$product, $ppp];

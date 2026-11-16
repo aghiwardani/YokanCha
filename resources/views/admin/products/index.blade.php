@@ -63,30 +63,6 @@
                                     Ubah
                                 </a>
                             </div>
-
-                            @if ($periods->isNotEmpty())
-                                <div class="border-t border-brand pt-4">
-                                    <p class="text-sm font-semibold text-charcoal mb-2">Atur Kuota per Periode</p>
-                                    <form action="{{ route('admin.products.quota', $product) }}" method="POST" class="flex flex-wrap items-end gap-3">
-                                        @csrf
-                                        <div>
-                                            <label class="block text-xs font-semibold text-charcoal mb-1">Periode</label>
-                                            <select name="po_period_id" class="px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta">
-                                                @foreach ($periods as $period)
-                                                    <option value="{{ $period->id }}">{{ $period->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-charcoal mb-1">Kuota</label>
-                                            <input type="number" name="quota" min="0" class="w-24 px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta" />
-                                        </div>
-                                        <button type="submit" class="px-4 py-2 bg-brand text-surface font-semibold rounded-brand hover:bg-opacity-90 transition duration-200">
-                                            Simpan Kuota
-                                        </button>
-                                    </form>
-                                </div>
-                            @endif
                         </div>
                     @endforeach
                 </div>

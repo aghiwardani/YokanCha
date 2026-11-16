@@ -13,13 +13,6 @@ class PoPeriodProduct extends Model
     protected $fillable = [
         'po_period_id',
         'product_id',
-        'quota',
-        'ordered_qty',
-    ];
-
-    protected $casts = [
-        'quota' => 'integer',
-        'ordered_qty' => 'integer',
     ];
 
     public function poPeriod(): BelongsTo
@@ -30,10 +23,5 @@ class PoPeriodProduct extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    public function remaining(): int
-    {
-        return $this->quota - $this->ordered_qty;
     }
 }

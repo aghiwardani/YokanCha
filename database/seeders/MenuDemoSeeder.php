@@ -9,9 +9,8 @@ use Illuminate\Database\Seeder;
 
 /**
  * Seeds the five menu items shown in the Figma mockup ("Menu batch ini") and
- * gives each a quota in the currently open PO period (creating one if none is
- * open). Safe to re-run: products are matched by name, quotas are upserted
- * without touching ordered_qty.
+ * adds each to the currently open PO period (creating one if none is open).
+ * Safe to re-run: products are matched by name and batch membership is upserted.
  *
  *   php artisan db:seed --class=MenuDemoSeeder
  */
@@ -90,7 +89,6 @@ class MenuDemoSeeder extends Seeder
 
             PoPeriodProduct::updateOrCreate(
                 ['po_period_id' => $period->id, 'product_id' => $product->id],
-                ['quota' => 30],
             );
         }
     }

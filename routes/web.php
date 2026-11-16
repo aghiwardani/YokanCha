@@ -50,7 +50,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
-    Route::post('/products/{product}/quota', [ProductController::class, 'setQuota'])->name('products.quota');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');

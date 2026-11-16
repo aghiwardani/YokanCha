@@ -17,7 +17,7 @@ class CheckoutTest extends TestCase
     use RefreshDatabase;
     use StocksMenu;
 
-    private function makePoPeriodProduct(int $quota = 5): PoPeriodProduct
+    private function makePoPeriodProduct(): PoPeriodProduct
     {
         $period = PoPeriod::create([
             'name' => 'PO Batch 1',
@@ -43,7 +43,6 @@ class CheckoutTest extends TestCase
         return PoPeriodProduct::create([
             'po_period_id' => $period->id,
             'product_id' => $product->id,
-            'quota' => $quota,
         ]);
     }
 
@@ -261,7 +260,6 @@ class CheckoutTest extends TestCase
         $stalePpp = PoPeriodProduct::create([
             'po_period_id' => $stalePeriod->id,
             'product_id' => $staleProduct->id,
-            'quota' => 5,
         ]);
 
         $this->addToCart($stalePpp, 1);

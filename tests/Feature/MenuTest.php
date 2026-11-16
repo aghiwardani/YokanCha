@@ -14,7 +14,7 @@ class MenuTest extends TestCase
     use RefreshDatabase;
     use StocksMenu;
 
-    public function test_shows_products_for_open_period_with_remaining_quota(): void
+    public function test_shows_products_for_open_period_with_remaining_stock(): void
     {
         $period = PoPeriod::create([
             'name' => 'PO Batch 1',
@@ -40,8 +40,6 @@ class MenuTest extends TestCase
         PoPeriodProduct::create([
             'po_period_id' => $period->id,
             'product_id' => $product->id,
-            'quota' => 5,
-            'ordered_qty' => 2,
         ]);
 
         $response = $this->get('/');
@@ -89,7 +87,6 @@ class MenuTest extends TestCase
             PoPeriodProduct::create([
                 'po_period_id' => $period->id,
                 'product_id' => $product->id,
-                'quota' => 50,
             ]);
         }
 
@@ -109,7 +106,7 @@ class MenuTest extends TestCase
         $milk = $this->ingredient('Susu');
         $this->stock($period, $milk, 10000);
         $this->recipe($product, '250 ml', $milk, 200);
-        $ppp = PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+        $ppp = PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
 
         $this->get('/')->assertSee('Keranjang')->assertDontSee('Keranjang · ');
 
@@ -124,7 +121,7 @@ class MenuTest extends TestCase
 
         foreach ([['250ml'], ['250 ml', '1 liter']] as $index => $sizes) {
             $product = Product::create(['name' => "Produk {$index}", 'base_price' => 25000, 'size_options' => $sizes]);
-            PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+            PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
         }
 
         $this->get('/')->assertSee('2 varian · 250ml &amp; 1 liter', false);
@@ -137,7 +134,7 @@ class MenuTest extends TestCase
         $milk = $this->ingredient('Susu');
         $this->stock($period, $milk, 1000, 900);
         $this->recipe($product, '250 ml', $milk, 200);
-        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
 
         $this->get('/')->assertSee('Habis')->assertSee('Sisa 0 botol');
     }
@@ -155,7 +152,7 @@ class MenuTest extends TestCase
         $this->stock($period, $milk, 500);
         $this->recipe($product, '250 ml', $milk, 1000);
         $this->recipe($product, '1 liter', $milk, 250);
-        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
 
         $html = $this->get('/')->assertOk()->getContent();
 
@@ -200,7 +197,7 @@ class MenuTest extends TestCase
         $milk = $this->ingredient('Susu');
         $this->stock($period, $milk, 10000);
         $this->recipe($product, '250 ml', $milk, 200);
-        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id, 'quota' => 10]);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
 
         $this->get('/')
             ->assertSee('Ada ukuran 250 ml dan 500 ml')

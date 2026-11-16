@@ -16,34 +16,6 @@ class ModelRelationsTest extends TestCase
     use RefreshDatabase;
     use StocksMenu;
 
-    public function test_po_period_product_remaining_is_quota_minus_ordered(): void
-    {
-        $poPeriod = PoPeriod::create([
-            'name' => 'PO Minggu 1',
-            'opens_at' => now()->subDay(),
-            'closes_at' => now()->addDay(),
-            'status' => 'open',
-        ]);
-
-        $product = Product::create([
-            'category' => 'minuman',
-            'name' => 'Es Teh',
-            'description' => 'Teh manis dingin',
-            'base_price' => 10000,
-            'size_options' => ['S', 'M', 'L'],
-            'sweetness_options' => ['normal', 'less sugar'],
-        ]);
-
-        $poPeriodProduct = PoPeriodProduct::create([
-            'po_period_id' => $poPeriod->id,
-            'product_id' => $product->id,
-            'quota' => 50,
-            'ordered_qty' => 12,
-        ]);
-
-        $this->assertSame(38, $poPeriodProduct->remaining());
-    }
-
     public function test_po_period_is_open_only_within_window_and_status_open(): void
     {
         $open = PoPeriod::create([

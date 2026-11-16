@@ -27,7 +27,6 @@ class OrderManagementTest extends TestCase
         PoPeriodProduct::create([
             'po_period_id' => $period->id,
             'product_id' => $product->id,
-            'quota' => 10,
         ]);
 
         // 200 ml of milk per bottle, already reserved for this order.
@@ -100,7 +99,7 @@ class OrderManagementTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        [$order, $ppp] = $this->makeOrderWithReservedStock(3);
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
 
         $response = $this->post("/admin/orders/{$order->id}/status", [
             'order_status' => 'cancelled',
@@ -114,14 +113,14 @@ class OrderManagementTest extends TestCase
         ]);
 
         // Stock must remain reserved since the order was not actually cancelled.
-        $this->assertEquals(600, $ppp->fresh()->used);
+        $this->assertEquals(600, $stock->fresh()->used);
     }
 
     public function test_cancel_returns_ingredients_to_stock(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        [$order, $ppp] = $this->makeOrderWithReservedStock(3);
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
 
         $response = $this->post("/admin/orders/{$order->id}/cancel");
 
@@ -132,14 +131,14 @@ class OrderManagementTest extends TestCase
             'order_status' => 'cancelled',
         ]);
 
-        $this->assertEquals(0, $ppp->fresh()->used);
+        $this->assertEquals(0, $stock->fresh()->used);
     }
 
-    public function test_cancelling_a_completed_order_does_not_release_quota(): void
+    public function test_cancelling_a_completed_order_does_not_release_stock(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        [$order, $ppp] = $this->makeOrderWithReservedStock(3);
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
         $order->update(['order_status' => 'selesai']);
 
         $response = $this->post("/admin/orders/{$order->id}/cancel");
@@ -152,17 +151,17 @@ class OrderManagementTest extends TestCase
         ]);
 
         // Stock must remain reserved; a completed order cannot be cancelled.
-        $this->assertEquals(600, $ppp->fresh()->used);
+        $this->assertEquals(600, $stock->fresh()->used);
     }
 
     public function test_update_status_rejects_transition_away_from_cancelled(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        [$order, $ppp] = $this->makeOrderWithReservedStock(3);
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
 
         $this->post("/admin/orders/{$order->id}/cancel");
-        $this->assertEquals(0, $ppp->fresh()->used);
+        $this->assertEquals(0, $stock->fresh()->used);
 
         $response = $this->post("/admin/orders/{$order->id}/status", [
             'order_status' => 'diproses',
@@ -176,7 +175,7 @@ class OrderManagementTest extends TestCase
         ]);
 
         // Stock must stay released; the order must not come back to life.
-        $this->assertEquals(0, $ppp->fresh()->used);
+        $this->assertEquals(0, $stock->fresh()->used);
     }
 
     public function test_cancel_returns_snapshot_after_recipe_edit(): void
@@ -193,20 +192,20 @@ class OrderManagementTest extends TestCase
         $this->assertEquals(0, $stock->fresh()->used);
     }
 
-    public function test_cancelling_already_cancelled_order_does_not_double_release_quota(): void
+    public function test_cancelling_already_cancelled_order_does_not_double_release_stock(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        [$order, $ppp] = $this->makeOrderWithReservedStock(3);
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
 
         $this->post("/admin/orders/{$order->id}/cancel");
-        $this->assertEquals(0, $ppp->fresh()->used);
+        $this->assertEquals(0, $stock->fresh()->used);
 
-        // Second cancel attempt must be a no-op: ordered_qty must not go negative
+        // Second cancel attempt must be a no-op: used stock must not go negative
         // or be decremented a second time.
         $this->post("/admin/orders/{$order->id}/cancel");
 
-        $this->assertEquals(0, $ppp->fresh()->used);
+        $this->assertEquals(0, $stock->fresh()->used);
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'order_status' => 'cancelled',

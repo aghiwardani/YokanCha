@@ -43,8 +43,6 @@ class CartTest extends TestCase
         return PoPeriodProduct::create([
             'po_period_id' => $period->id,
             'product_id' => $product->id,
-            'quota' => 10,
-            'ordered_qty' => 0,
         ]);
     }
 
@@ -81,7 +79,6 @@ class CartTest extends TestCase
     public function test_limits_each_variant_to_twenty_bottles_across_sizes(): void
     {
         $ppp = $this->makePoPeriodProduct();
-        $ppp->update(['quota' => 100]);
 
         $this->post('/cart', $this->cartPayload($ppp, ['qty' => 15, 'size' => '250ml']))->assertSessionHasNoErrors();
         $this->post('/cart', $this->cartPayload($ppp, ['qty' => 6, 'size' => '1L']))->assertSessionHasErrors('qty');
@@ -172,7 +169,7 @@ class CartTest extends TestCase
 
         $other = Product::create(['name' => 'Hojicha', 'base_price' => 25000, 'size_options' => ['250ml']]);
         $this->recipe($other, '250ml', $this->milk, 200);
-        $otherPpp = PoPeriodProduct::create(['po_period_id' => $ppp->po_period_id, 'product_id' => $other->id, 'quota' => 10]);
+        $otherPpp = PoPeriodProduct::create(['po_period_id' => $ppp->po_period_id, 'product_id' => $other->id]);
 
         $this->post('/cart', $this->cartPayload($ppp, ['qty' => 3]))->assertSessionHasNoErrors();
         $this->post('/cart', $this->cartPayload($otherPpp, ['qty' => 3, 'sweetness' => '-']))
@@ -193,7 +190,6 @@ class CartTest extends TestCase
     public function test_update_cannot_raise_a_variant_above_twenty(): void
     {
         $ppp = $this->makePoPeriodProduct();
-        $ppp->update(['quota' => 100]);
 
         $this->post('/cart', $this->cartPayload($ppp, ['qty' => 2]));
 
