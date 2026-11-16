@@ -28,6 +28,11 @@ class PoPeriod extends Model
         return $this->hasMany(PoPeriodProduct::class);
     }
 
+    public function ingredientStocks(): HasMany
+    {
+        return $this->hasMany(PoPeriodIngredient::class);
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);

@@ -8,11 +8,13 @@ use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\StocksMenu;
 use Tests\TestCase;
 
 class ModelRelationsTest extends TestCase
 {
     use RefreshDatabase;
+    use StocksMenu;
 
     public function test_po_period_product_remaining_is_quota_minus_ordered(): void
     {
@@ -132,5 +134,38 @@ class ModelRelationsTest extends TestCase
         $this->assertCount(2, $order->items);
         $this->assertTrue($poPeriod->poPeriodProducts()->exists() === false);
         $this->assertTrue($poPeriod->orders->contains($order));
+    }
+    public function test_po_period_ingredient_remaining_is_stock_minus_used(): void
+    {
+        $period = PoPeriod::create([
+            'name' => 'PO Minggu 1',
+            'opens_at' => now()->subDay(),
+            'closes_at' => now()->addDay(),
+            'status' => 'open',
+        ]);
+        $matcha = $this->ingredient('Matcha', 'g');
+
+        $row = $this->stock($period, $matcha, 2000, 450);
+
+        $this->assertSame(1550.0, $row->fresh()->remaining());
+    }
+
+    public function test_product_has_recipes_per_size(): void
+    {
+        $product = Product::create([
+            'category' => 'minuman',
+            'name' => 'Es Matcha',
+            'description' => 'Matcha dingin',
+            'base_price' => 10000,
+            'size_options' => ['250 ml', '1 liter'],
+            'sweetness_options' => ['normal', 'less sugar'],
+        ]);
+        $milk = $this->ingredient('Susu');
+
+        $this->recipe($product, '250 ml', $milk, 150);
+        $this->recipe($product, '1 liter', $milk, 600);
+
+        $this->assertSame(1, $product->recipes()->where('size', '1 liter')->count());
+        $this->assertCount(2, $product->recipes);
     }
 }

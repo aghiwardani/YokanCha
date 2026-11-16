@@ -42,6 +42,11 @@ class Product extends Model
         return $this->hasMany(PoPeriodProduct::class);
     }
 
+    public function recipes(): HasMany
+    {
+        return $this->hasMany(ProductRecipe::class);
+    }
+
     /**
      * Unit price for the given size label. Sizes without an explicit price
      * (or products without per-size pricing) use base_price.
