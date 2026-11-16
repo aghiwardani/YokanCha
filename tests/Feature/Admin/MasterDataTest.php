@@ -170,6 +170,32 @@ class MasterDataTest extends TestCase
         $this->assertDatabaseCount('order_items', 1);
     }
 
+    public function test_page_explains_missing_recipes_usage_and_why_delete_is_locked(): void
+    {
+        Size::create(['name' => '250 ml', 'volume_ml' => 250]);
+        Size::create(['name' => '500 ml', 'volume_ml' => 500]);
+        $milk = $this->ingredient('Susu');
+        $this->ingredient('Cashew Milk');
+        $latte = Product::factory()->create(['name' => 'Latte', 'size_options' => ['250 ml', '500 ml']]);
+        $this->recipe($latte, '250 ml', $milk, 200);
+        $order = Order::create([
+            'po_period_id' => PoPeriod::create(['name' => 'PO', 'status' => 'open'])->id,
+            'customer_name' => 'Budi',
+            'customer_whatsapp' => '08123456789',
+            'order_number' => 'YC-TEST-2',
+        ]);
+        OrderItem::create(['order_id' => $order->id, 'product_id' => $latte->id, 'size' => '250 ml', 'sweetness' => '-', 'qty' => 1, 'unit_price' => 10000]);
+
+        $response = $this->actingAs($this->admin())->get('/admin/master')->assertOk();
+
+        $response->assertSee('Belum ada resep: 500 ml');
+        $response->assertSee('Sudah pernah dipesan');
+        $response->assertDontSee('Hapus produk Latte');
+        $response->assertSee('Tidak bisa dihapus karena masih dipakai di resep 1 produk.');
+        $response->assertSee('Bahan ini belum dipakai di mana pun, jadi aman dihapus.');
+        $response->assertSee('Tidak bisa dihapus karena masih dijual di 1 produk.');
+    }
+
     public function test_failed_size_add_does_not_prefill_ingredient_add_form(): void
     {
         $this->actingAs($this->admin());
