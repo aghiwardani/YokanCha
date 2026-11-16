@@ -42,7 +42,7 @@ class PoPeriodController extends Controller
             ]);
 
             // A new batch starts with every menu; the owner unchecks what is not made.
-            Product::pluck('id')->each(fn ($productId) => PoPeriodProduct::create([
+            Product::where('is_active', true)->pluck('id')->each(fn ($productId) => PoPeriodProduct::create([
                 'po_period_id' => $period->id,
                 'product_id' => $productId,
             ]));

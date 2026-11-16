@@ -110,6 +110,22 @@ class ProductController extends Controller
         return redirect()->to(route('admin.master').'#produk')->with('status', 'Produk berhasil diubah.');
     }
 
+    /**
+     * Turn a product off (hidden from the menu, can't be ordered) or back on.
+     * Its recipes, batch entries and order history stay as they are.
+     */
+    public function setActive(Request $request, Product $product): RedirectResponse
+    {
+        $active = $request->boolean('is_active');
+        $product->update(['is_active' => $active]);
+
+        $message = $active
+            ? "{$product->name} diaktifkan lagi."
+            : "{$product->name} dinonaktifkan. Produk ini tidak tampil di menu dan tidak bisa dipesan.";
+
+        return redirect()->to(route('admin.master').'#produk')->with('status', $message);
+    }
+
     public function destroy(Product $product): RedirectResponse
     {
         // order_items cascade on product delete; keep order history intact.

@@ -27,14 +27,22 @@
                 <span>Produk</span>
                 <span>Ukuran &amp; harga</span>
                 <span>Resep</span>
-                <span class="w-36 text-right">Aksi</span>
+                <span class="w-56 text-right">Aksi</span>
             </div>
             <ul class="divide-y divide-line">
                 @foreach ($products as $product)
                     @php $info = $productInfo[$product->id]; @endphp
                     <li class="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.4fr)_auto] md:items-center md:gap-4">
                         <div class="min-w-0">
-                            <p class="font-bold text-charcoal">{{ $product->name }}</p>
+                            <p class="flex flex-wrap items-center gap-2 font-bold {{ $product->is_active ? 'text-charcoal' : 'text-muted' }}">
+                                {{ $product->name }}
+                                @unless ($product->is_active)
+                                    <span class="rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-muted">Nonaktif</span>
+                                @endunless
+                            </p>
+                            @unless ($product->is_active)
+                                <p class="mt-0.5 text-xs text-muted">Tidak tampil di menu dan tidak bisa dipesan.</p>
+                            @endunless
                             @if ($product->description)
                                 <p class="mt-0.5 line-clamp-2 text-sm text-muted">{{ $product->description }}</p>
                             @endif
@@ -67,13 +75,24 @@
                             @endif
                         </div>
 
-                        <div class="flex items-center gap-2 md:w-36 md:justify-end">
+                        <div class="flex flex-wrap items-center gap-2 md:w-56 md:justify-end">
                             <a
                                 href="{{ route('admin.products.edit', $product) }}"
                                 class="rounded-brand border border-charcoal/20 px-3 py-1.5 text-sm font-bold text-charcoal transition hover:border-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-cta"
                             >
                                 Ubah
                             </a>
+                            <form action="{{ route('admin.products.active', $product) }}" method="POST">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="is_active" value="{{ $product->is_active ? '0' : '1' }}" />
+                                <button
+                                    type="submit"
+                                    class="rounded-brand px-3 py-1.5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cta {{ $product->is_active ? 'text-muted hover:bg-oat-deep' : 'bg-sage-soft text-brand hover:bg-opacity-80' }}"
+                                >
+                                    {{ $product->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                                </button>
+                            </form>
                             @if ($info['ordered'])
                                 <span class="text-xs leading-4 text-muted" title="Produk yang sudah pernah dipesan tidak bisa dihapus supaya riwayat pesanan tetap utuh.">Sudah pernah dipesan</span>
                             @else

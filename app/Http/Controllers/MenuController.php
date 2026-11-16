@@ -19,6 +19,7 @@ class MenuController extends Controller
         if ($period) {
             // Lowest sort_order first; the first card is rendered as the wide featured card.
             $items = PoPeriodProduct::where('po_period_id', $period->id)
+                ->whereHas('product', fn ($query) => $query->where('is_active', true))
                 ->with('product')
                 ->get()
                 ->sortBy(fn (PoPeriodProduct $item) => [$item->product->sort_order, $item->product->id])

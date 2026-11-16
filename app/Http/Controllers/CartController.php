@@ -145,6 +145,12 @@ class CartController extends Controller
             ]);
         }
 
+        if (! $ppp->product->is_active) {
+            throw ValidationException::withMessages([
+                'po_period_product_id' => "{$ppp->product->name} sedang tidak dijual.",
+            ]);
+        }
+
         return $ppp;
     }
 

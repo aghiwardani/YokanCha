@@ -178,6 +178,12 @@ class CheckoutController extends Controller
                     'cart' => 'Ada item dari batch yang sudah tutup. Hapus dulu, lalu pilih lagi dari menu sekarang.',
                 ]);
             }
+
+            if (! $line['product']->is_active) {
+                throw ValidationException::withMessages([
+                    'cart' => "{$line['product']->name} sudah tidak dijual. Hapus dari keranjang dulu, lalu lanjut pesan.",
+                ]);
+            }
         }
 
         return $openPeriod;

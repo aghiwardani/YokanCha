@@ -97,6 +97,9 @@
                                     @checked($hasOld ? in_array($product->id, array_map('intval', old('products', []))) : in_array($product->id, $selectedProducts))
                                 />
                                 {{ $product->name }}
+                                @unless ($product->is_active)
+                                    <span class="rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-muted">Nonaktif, tidak tampil di menu</span>
+                                @endunless
                             </label>
                         @endforeach
                     </div>

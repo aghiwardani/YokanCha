@@ -27,6 +27,11 @@ class Product extends Model
         'tone',
         'bottle_style',
         'sort_order',
+        'is_active',
+    ];
+
+    protected $attributes = [
+        'is_active' => true,
     ];
 
     protected $casts = [
@@ -35,6 +40,7 @@ class Product extends Model
         'size_prices' => 'array',
         'sweetness_options' => 'array',
         'sort_order' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     public function poPeriodProducts(): HasMany
