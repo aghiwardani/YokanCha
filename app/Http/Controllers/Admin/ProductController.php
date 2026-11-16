@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Ingredient;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -23,6 +25,8 @@ class ProductController extends Controller
     {
         return view('admin.products.form', [
             'product' => new Product(),
+            'ingredients' => Ingredient::orderBy('name')->get(),
+            'recipes' => [],
         ]);
     }
 
@@ -30,15 +34,25 @@ class ProductController extends Controller
     {
         $validated = $this->validateProduct($request);
 
-        Product::create($validated);
+        DB::transaction(function () use ($request, $validated) {
+            $product = Product::create($validated);
+            $this->syncRecipes($request, $product);
+        });
 
         return redirect()->route('admin.products')->with('status', 'Produk berhasil ditambahkan.');
     }
 
     public function edit(Product $product): View
     {
+        $recipes = [];
+        foreach ($product->recipes as $row) {
+            $recipes[$row->size][$row->ingredient_id] = $row;
+        }
+
         return view('admin.products.form', [
             'product' => $product,
+            'ingredients' => Ingredient::orderBy('name')->get(),
+            'recipes' => $recipes,
         ]);
     }
 
@@ -46,13 +60,33 @@ class ProductController extends Controller
     {
         $validated = $this->validateProduct($request);
 
-        $product->update($validated);
+        DB::transaction(function () use ($request, $validated, $product) {
+            $product->update($validated);
+            $this->syncRecipes($request, $product);
+        });
 
         return redirect()->route('admin.products')->with('status', 'Produk berhasil diubah.');
     }
 
     private function validateProduct(Request $request): array
     {
+        // Size names may contain dots ("1.5 liter"), which break wildcard rules,
+        // so every leaf amount is checked here instead of with recipe.*.*.
+        $amountsRule = function (string $attribute, mixed $value, \Closure $fail) {
+            $leaves = [];
+            array_walk_recursive($value, function ($amount) use (&$leaves) {
+                $leaves[] = $amount;
+            });
+
+            foreach ($leaves as $amount) {
+                if ($amount !== null && $amount !== '' && (! is_numeric($amount) || $amount < 0)) {
+                    $fail('Takaran resep harus berupa angka 0 atau lebih.');
+
+                    return;
+                }
+            }
+        };
+
         $validated = $request->validate([
             'category' => ['nullable', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
@@ -64,6 +98,8 @@ class ProductController extends Controller
             'tone' => ['nullable', 'in:'.implode(',', Product::TONES)],
             'bottle_style' => ['nullable', 'in:'.implode(',', Product::BOTTLE_STYLES)],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'recipe' => ['nullable', 'array', $amountsRule],
+            'recipe_less_sugar' => ['nullable', 'array', $amountsRule],
         ]);
 
         [$sizes, $sizePrices] = $this->parseSizes($validated['size_options'] ?? null);
@@ -81,6 +117,40 @@ class ProductController extends Controller
             'bottle_style' => $validated['bottle_style'] ?? null,
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
         ];
+    }
+
+    /**
+     * Replace the product's recipe rows with the submitted grid. Only amounts
+     * above zero are kept, only for the saved sizes (or '-' without sizes),
+     * and amount_less_sugar lives on the sugar ingredient's row alone.
+     */
+    private function syncRecipes(Request $request, Product $product): void
+    {
+        $product->recipes()->delete();
+
+        $sizes = $product->size_options ?: ['-'];
+        $recipe = (array) $request->input('recipe', []);
+        $lessSugar = (array) $request->input('recipe_less_sugar', []);
+        $ingredients = Ingredient::all()->keyBy('id');
+
+        foreach ($sizes as $size) {
+            foreach ((array) ($recipe[$size] ?? []) as $ingredientId => $amount) {
+                $ingredient = $ingredients->get($ingredientId);
+
+                if (! $ingredient || ! is_numeric($amount) || (float) $amount <= 0) {
+                    continue;
+                }
+
+                $less = $lessSugar[$size] ?? null;
+
+                $product->recipes()->create([
+                    'size' => $size,
+                    'ingredient_id' => $ingredient->id,
+                    'amount' => $amount,
+                    'amount_less_sugar' => $ingredient->is_sugar && is_numeric($less) && (float) $less > 0 ? $less : null,
+                ]);
+            }
+        }
     }
 
     /**
