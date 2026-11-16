@@ -9,7 +9,7 @@
             <h1 class="text-3xl font-bold text-charcoal">
                 {{ $product->exists ? 'Ubah Produk' : 'Tambah Produk' }}
             </h1>
-            <a href="{{ route('admin.products') }}" class="text-sm font-semibold text-charcoal underline">
+            <a href="{{ route('admin.master') }}#produk" class="text-sm font-semibold text-charcoal underline">
                 Kembali
             </a>
         </div>

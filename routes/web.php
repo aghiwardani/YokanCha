@@ -50,13 +50,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/periods/{period}/stock', [PoPeriodController::class, 'stock'])->name('periods.stock');
     Route::put('/periods/{period}/stock', [PoPeriodController::class, 'updateStock'])->name('periods.stock.update');
 
-    Route::get('/products', [ProductController::class, 'index'])->name('products');
+    // Master data: products (Produk), ingredients (Bahan) and sizes (Ukuran) on one page.
+    Route::get('/products', fn () => redirect()->to(route('admin.master').'#produk'))->name('products');
     Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
-    // Master data: ingredients (Bahan) and sizes (Ukuran) on one page.
     Route::get('/master', [MasterDataController::class, 'index'])->name('master');
 
     Route::get('/ingredients', fn () => redirect()->to(route('admin.master').'#bahan'))->name('ingredients');

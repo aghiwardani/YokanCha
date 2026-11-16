@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Size;
 use Illuminate\Http\RedirectResponse;
@@ -13,14 +14,6 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function index(): View
-    {
-        $products = Product::orderBy('name')->get();
-
-        return view('admin.products.index', [
-            'products' => $products,
-        ]);
-    }
 
     public function create(): View
     {
@@ -36,7 +29,7 @@ class ProductController extends Controller
             $this->syncRecipes($request, $product);
         });
 
-        return redirect()->route('admin.products')->with('status', 'Produk berhasil ditambahkan.');
+        return redirect()->to(route('admin.master').'#produk')->with('status', 'Produk berhasil ditambahkan.');
     }
 
     public function edit(Product $product): View
@@ -114,7 +107,21 @@ class ProductController extends Controller
             $this->syncRecipes($request, $product);
         });
 
-        return redirect()->route('admin.products')->with('status', 'Produk berhasil diubah.');
+        return redirect()->to(route('admin.master').'#produk')->with('status', 'Produk berhasil diubah.');
+    }
+
+    public function destroy(Product $product): RedirectResponse
+    {
+        // order_items cascade on product delete; keep order history intact.
+        if (OrderItem::where('product_id', $product->id)->exists()) {
+            return redirect()->to(route('admin.master').'#produk')
+                ->with('error', "{$product->name} sudah pernah dipesan, jadi tidak bisa dihapus supaya riwayat pesanan tetap utuh.");
+        }
+
+        // Recipes and batch entries (po_period_products) go with it.
+        $product->delete();
+
+        return redirect()->to(route('admin.master').'#produk')->with('status', 'Produk berhasil dihapus.');
     }
 
     private function validateProduct(Request $request, ?Product $existing = null): array

@@ -27,7 +27,7 @@ class ProductManagementTest extends TestCase
             'sweetness_options' => 'Normal, Kurang Gula',
         ]);
 
-        $response->assertRedirect('/admin/products');
+        $response->assertRedirect('/admin/master#produk');
 
         $this->assertDatabaseHas('products', [
             'name' => 'Es Teh Lemon',
@@ -53,7 +53,7 @@ class ProductManagementTest extends TestCase
             'tone' => 'amber',
             'bottle_style' => 'maple',
             'sort_order' => 1,
-        ])->assertRedirect('/admin/products');
+        ])->assertRedirect('/admin/master#produk');
 
         $product = Product::where('name', 'Maple Matcha Latte')->first();
         $this->assertSame(['250 ml', '1 liter'], $product->size_options);
@@ -96,7 +96,7 @@ class ProductManagementTest extends TestCase
             'sweetness_options' => implode(', ', $product->sweetness_options ?? []),
         ]);
 
-        $response->assertRedirect('/admin/products');
+        $response->assertRedirect('/admin/master#produk');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
@@ -143,7 +143,7 @@ class ProductManagementTest extends TestCase
                 '250 ml' => [$matcha->id => '3', $milk->id => '200'],
                 '1 liter' => [$matcha->id => '12.5', $milk->id => '800'],
             ],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $product = Product::where('name', 'Maple Matcha Latte')->first();
         $this->assertSame(4, $product->recipes()->count());
@@ -161,7 +161,7 @@ class ProductManagementTest extends TestCase
         $this->post('/admin/products', $this->productPayload([
             'recipe' => ['250 ml' => [$matcha->id => '3', $sugar->id => '20']],
             'recipe_less_sugar' => ['250 ml' => '10', '1 liter' => '40'],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $product = Product::where('name', 'Maple Matcha Latte')->first();
         $sugarRow = $product->recipes()->where('ingredient_id', $sugar->id)->first();
@@ -179,7 +179,7 @@ class ProductManagementTest extends TestCase
 
         $this->post('/admin/products', $this->productPayload([
             'recipe' => ['250 ml' => [$matcha->id => '', $milk->id => '0']],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $this->assertSame(0, Product::where('name', 'Maple Matcha Latte')->first()->recipes()->count());
     }
@@ -198,7 +198,7 @@ class ProductManagementTest extends TestCase
                 '250 ml' => [$matcha->id => '4'],
                 '1 liter' => [$matcha->id => '12'],
             ],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $this->assertSame(1, $product->recipes()->count());
         $this->assertEquals(4, $product->recipes()->first()->amount);
@@ -213,7 +213,7 @@ class ProductManagementTest extends TestCase
         $this->post('/admin/products', $this->productPayload([
             'sizes' => [],
             'recipe' => ['-' => [$matcha->id => '5']],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $this->assertSame('-', Product::where('name', 'Maple Matcha Latte')->first()->recipes()->first()->size);
     }
@@ -299,7 +299,7 @@ class ProductManagementTest extends TestCase
                 $small->id => ['on' => '1', 'price' => '32000'],
                 $mid->id => ['on' => '1', 'price' => '60000'],
             ],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $product = Product::where('name', 'Maple Matcha Latte')->first();
         $this->assertSame(['250 ml', '500 ml', '1 liter'], $product->size_options);
@@ -317,7 +317,7 @@ class ProductManagementTest extends TestCase
                 $small->id => ['on' => '1', 'price' => '32000'],
                 $mid->id => ['price' => '60000'],
             ],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $product = Product::where('name', 'Maple Matcha Latte')->first();
         $this->assertSame(['250 ml'], $product->size_options);
@@ -374,7 +374,7 @@ class ProductManagementTest extends TestCase
             'name' => $product->name,
             'sizes' => [$small->id => ['on' => '1', 'price' => '30000']],
             'recipe' => ['Jumbo' => [$milk->id => '600']],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $product->refresh();
         $this->assertSame(['250 ml', 'Jumbo'], $product->size_options);
@@ -389,7 +389,7 @@ class ProductManagementTest extends TestCase
 
         $this->post('/admin/products', $this->productPayload([
             'sizes' => [$small->id => ['on' => '1', 'price' => '32.000']],
-        ]))->assertRedirect('/admin/products');
+        ]))->assertRedirect('/admin/master#produk');
 
         $this->assertSame(32000, Product::where('name', 'Maple Matcha Latte')->first()->priceFor('250 ml'));
     }

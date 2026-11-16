@@ -3,7 +3,10 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Ingredient;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\PoPeriod;
+use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use App\Models\Size;
 use App\Models\User;
@@ -109,6 +112,62 @@ class MasterDataTest extends TestCase
             ->assertSessionHas('error');
 
         $this->assertModelExists($size);
+    }
+
+    public function test_master_page_lists_products_with_edit_and_add_links(): void
+    {
+        $product = Product::factory()->create(['name' => 'Matcha Oat']);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/master')
+            ->assertOk()
+            ->assertSee('id="produk"', false)
+            ->assertSee('Matcha Oat')
+            ->assertSee(route('admin.products.edit', $product), false)
+            ->assertSee(route('admin.products.create'), false);
+    }
+
+    public function test_old_products_page_redirects_to_master_section(): void
+    {
+        $this->actingAs($this->admin())
+            ->get('/admin/products')
+            ->assertRedirect('/admin/master#produk');
+    }
+
+    public function test_product_never_ordered_can_be_deleted_with_its_recipes(): void
+    {
+        $product = Product::factory()->create();
+        $this->recipe($product, '250 ml', $this->ingredient('Susu'), 200);
+        PoPeriodProduct::create(['po_period_id' => PoPeriod::create(['name' => 'PO', 'status' => 'open'])->id, 'product_id' => $product->id]);
+
+        $this->actingAs($this->admin())
+            ->delete("/admin/products/{$product->id}")
+            ->assertRedirect('/admin/master#produk')
+            ->assertSessionHas('status', 'Produk berhasil dihapus.');
+
+        $this->assertModelMissing($product);
+        $this->assertDatabaseCount('product_recipes', 0);
+        $this->assertDatabaseCount('po_period_products', 0);
+    }
+
+    public function test_product_with_orders_cannot_be_deleted(): void
+    {
+        $product = Product::factory()->create();
+        $order = Order::create([
+            'po_period_id' => PoPeriod::create(['name' => 'PO', 'status' => 'open'])->id,
+            'customer_name' => 'Budi',
+            'customer_whatsapp' => '08123456789',
+            'order_number' => 'YC-TEST-1',
+        ]);
+        OrderItem::create(['order_id' => $order->id, 'product_id' => $product->id, 'size' => '250 ml', 'sweetness' => '-', 'qty' => 1, 'unit_price' => 10000]);
+
+        $this->actingAs($this->admin())
+            ->delete("/admin/products/{$product->id}")
+            ->assertRedirect('/admin/master#produk')
+            ->assertSessionHas('error');
+
+        $this->assertModelExists($product);
+        $this->assertDatabaseCount('order_items', 1);
     }
 
     public function test_failed_size_add_does_not_prefill_ingredient_add_form(): void

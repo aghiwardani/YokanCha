@@ -14,15 +14,8 @@
                 </a>
 
                 <a
-                    href="{{ route('admin.products') }}"
-                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.products*') ? 'text-brand' : '' }}"
-                >
-                    Produk
-                </a>
-
-                <a
                     href="{{ route('admin.master') }}"
-                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.master') ? 'text-brand' : '' }}"
+                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.master', 'admin.products*') ? 'text-brand' : '' }}"
                 >
                     Master Data
                 </a>
