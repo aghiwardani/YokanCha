@@ -112,7 +112,7 @@ class PoPeriodController extends Controller
     {
         $request->validate([
             'stock' => ['nullable', 'array'],
-            'stock.*' => ['nullable', 'numeric', 'min:0'],
+            'stock.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'products' => ['nullable', 'array'],
             'products.*' => ['integer', 'exists:products,id'],
         ]);

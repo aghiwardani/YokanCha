@@ -41,6 +41,18 @@ class PeriodStockTest extends TestCase
         $this->assertDatabaseHas('po_period_products', ['po_period_id' => $period->id, 'product_id' => $product->id]);
     }
 
+    public function test_stock_above_column_limit_is_rejected(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'stock' => [$milk->id => '1000000000'],
+        ])->assertSessionHasErrors('stock.'.$milk->id);
+
+        $this->assertDatabaseCount('po_period_ingredients', 0);
+    }
+
     public function test_new_period_includes_all_products(): void
     {
         $a = Product::factory()->create();

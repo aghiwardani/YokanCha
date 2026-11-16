@@ -134,6 +134,28 @@ class OrderManagementTest extends TestCase
         $this->assertEquals(0, $stock->fresh()->used);
     }
 
+    public function test_cancel_message_says_stock_returned(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        [$order] = $this->makeOrderWithReservedStock(3);
+
+        $this->post("/admin/orders/{$order->id}/cancel")
+            ->assertSessionHas('status', 'Pesanan dibatalkan dan bahan dikembalikan ke stok.');
+    }
+
+    public function test_cancel_message_for_order_without_snapshots(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        [$order, $stock] = $this->makeOrderWithReservedStock(3);
+        OrderItemIngredient::query()->delete();
+
+        $this->post("/admin/orders/{$order->id}/cancel")
+            ->assertSessionHas('status', 'Pesanan dibatalkan. Pesanan ini dibuat sebelum stok bahan dicatat, jadi tidak ada bahan yang dikembalikan.');
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'order_status' => 'cancelled']);
+        $this->assertEquals(600, $stock->fresh()->used);
+    }
+
     public function test_cancelling_a_completed_order_does_not_release_stock(): void
     {
         $this->actingAs(User::factory()->admin()->create());

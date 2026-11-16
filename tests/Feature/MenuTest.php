@@ -250,4 +250,32 @@ class MenuTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Pre-order lagi tutup dulu');
     }
+
+    public function test_sweetness_preselects_makeable_level_and_disables_unmakeable(): void
+    {
+        $period = PoPeriod::create([
+            'name' => 'PO', 'opens_at' => now()->subDay(), 'closes_at' => now()->addDay(), 'status' => 'open',
+        ]);
+        $product = Product::create([
+            'category' => 'minuman', 'name' => 'Matcha Latte', 'base_price' => 25000,
+            'size_options' => ['250ml'], 'sweetness_options' => ['Manis normal', 'Less sugar'],
+        ]);
+        $milk = $this->ingredient('Susu');
+        $sugar = $this->ingredient('Gula', 'g', true);
+        $this->stock($period, $milk, 1000);
+        $this->stock($period, $sugar, 10);
+        $this->recipe($product, '250ml', $milk, 200);
+        $this->recipe($product, '250ml', $sugar, 20, 8);
+        PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        preg_match('/<input[^>]*value="Manis normal"[^>]*>/s', $html, $normal);
+        preg_match('/<input[^>]*value="Less sugar"[^>]*>/s', $html, $less);
+
+        $this->assertStringContainsString('disabled', $normal[0]);
+        $this->assertStringNotContainsString('checked', $normal[0]);
+        $this->assertStringContainsString('checked', $less[0]);
+        $this->assertStringNotContainsString('disabled', $less[0]);
+    }
 }

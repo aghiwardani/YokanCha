@@ -242,4 +242,28 @@ class ProductManagementTest extends TestCase
             ->assertSee('Satu ukuran')
             ->assertSee('name="recipe[-]['.$matcha->id.']"', false);
     }
+
+    public function test_recipe_amount_above_column_limit_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $milk = $this->ingredient('Susu');
+
+        $this->post('/admin/products', [
+            'name' => 'Latte', 'base_price' => 10000, 'size_options' => '250ml',
+            'recipe' => ['250ml' => [$milk->id => '1000000000']],
+        ])->assertSessionHasErrors('recipe');
+
+        $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_non_array_recipe_input_fails_validation(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->post('/admin/products', [
+            'name' => 'Latte', 'base_price' => 10000, 'recipe' => 'abc', 'recipe_less_sugar' => 'abc',
+        ])->assertSessionHasErrors(['recipe', 'recipe_less_sugar']);
+
+        $this->assertDatabaseCount('products', 0);
+    }
 }

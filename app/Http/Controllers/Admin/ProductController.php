@@ -73,14 +73,20 @@ class ProductController extends Controller
         // Size names may contain dots ("1.5 liter"), which break wildcard rules,
         // so every leaf amount is checked here instead of with recipe.*.*.
         $amountsRule = function (string $attribute, mixed $value, \Closure $fail) {
+            if (! is_array($value)) {
+                $fail('Takaran resep tidak valid.');
+
+                return;
+            }
+
             $leaves = [];
             array_walk_recursive($value, function ($amount) use (&$leaves) {
                 $leaves[] = $amount;
             });
 
             foreach ($leaves as $amount) {
-                if ($amount !== null && $amount !== '' && (! is_numeric($amount) || $amount < 0)) {
-                    $fail('Takaran resep harus berupa angka 0 atau lebih.');
+                if ($amount !== null && $amount !== '' && (! is_numeric($amount) || $amount < 0 || $amount > 99999999)) {
+                    $fail('Takaran resep harus berupa angka antara 0 dan 99999999.');
 
                     return;
                 }

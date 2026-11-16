@@ -15,6 +15,8 @@ use Illuminate\Database\Seeder;
  * adds each to the currently open PO period (creating one if none is open).
  * Also seeds the ingredient list, stocks it in that period, and gives each menu
  * a per-size recipe so the menu is orderable right after seeding.
+ * Only for demo/empty databases: it overwrites the descriptions and prices of
+ * these five products and adds demo stock, so do not run it on live data.
  * Safe to re-run: products/ingredients/recipes are upserted; existing period
  * stock rows are left untouched so `used` (and any admin-edited stock) is kept.
  *

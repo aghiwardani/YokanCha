@@ -12,6 +12,11 @@
     $sweetness = $product->sweetness_options ?: [];
     $firstSize = $sizes[0] ?? null;
     $firstEnabledSize = collect($sizes)->first(fn ($size) => ($sizeStock[$size] ?? 0) > 0);
+    $cells = $availability[$item->id]['cells'] ?? [];
+    $preSize = $firstEnabledSize ?? ($sizes[0] ?? '-');
+    $sweetEnabled = fn ($level) => collect($cells)->contains(fn ($row) => ($row[$level] ?? 0) > 0);
+    $firstEnabledSweet = collect($sweetness)->first(fn ($level) => ($cells[$preSize][$level] ?? 0) > 0)
+        ?? collect($sweetness)->first($sweetEnabled);
     $price = $product->priceFor($firstSize);
     $rupiah = fn (int $amount) => 'Rp'.number_format($amount, 0, ',', '.');
 
@@ -90,8 +95,8 @@
                                     name="sweetness"
                                     value="{{ $level }}"
                                     class="peer sr-only"
-                                    @checked($index === 0)
-                                    @disabled($soldOut)
+                                    @checked($level === $firstEnabledSweet)
+                                    @disabled($soldOut || ! $sweetEnabled($level))
                                 >
                                 <span class="yc-chip">
                                     <span class="text-sm font-bold leading-[18px]">{{ $level }}</span>

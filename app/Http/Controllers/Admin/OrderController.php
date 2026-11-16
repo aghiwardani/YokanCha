@@ -83,19 +83,21 @@ class OrderController extends Controller
             $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
             if (in_array($locked->order_status, ['cancelled', 'selesai'], true)) {
-                return false;
+                return 'none';
             }
 
-            $this->stock->release($locked);
+            $released = $this->stock->release($locked);
 
             $locked->update(['order_status' => 'cancelled']);
 
-            return true;
+            return $released ? 'released' : 'nothing';
         });
 
-        $message = $wasCancelled
-            ? 'Pesanan dibatalkan dan bahan dikembalikan ke stok.'
-            : 'Pesanan tidak dapat dibatalkan (sudah dibatalkan atau selesai).';
+        $message = match ($wasCancelled) {
+            'released' => 'Pesanan dibatalkan dan bahan dikembalikan ke stok.',
+            'nothing' => 'Pesanan dibatalkan. Pesanan ini dibuat sebelum stok bahan dicatat, jadi tidak ada bahan yang dikembalikan.',
+            default => 'Pesanan tidak dapat dibatalkan (sudah dibatalkan atau selesai).',
+        };
 
         return redirect()->route('admin.orders.show', $order)
             ->with('status', $message);

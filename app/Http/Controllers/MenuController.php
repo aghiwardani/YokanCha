@@ -37,7 +37,7 @@ class MenuController extends Controller
     }
 
     /**
-     * @return array{max:int, sizes: array<string,int>} sizes[size] = best available() over sweetness levels
+     * @return array{max:int, sizes: array<string,int>, cells: array<string,array<string,int>>} sizes[size] = best available() over sweetness levels; cells[size][sweetness] = available()
      */
     private function availabilityFor(StockService $stock, PoPeriodProduct $item): array
     {
@@ -46,14 +46,17 @@ class MenuController extends Controller
         $sweets = empty($product->sweetness_options) ? ['-'] : array_values($product->sweetness_options);
 
         $perSize = [];
+        $cells = [];
         foreach ($sizes as $size) {
             $best = 0;
             foreach ($sweets as $sweet) {
-                $best = max($best, $stock->available($item, (string) $size, (string) $sweet));
+                $count = $stock->available($item, (string) $size, (string) $sweet);
+                $cells[$size][$sweet] = $count;
+                $best = max($best, $count);
             }
             $perSize[$size] = $best;
         }
 
-        return ['max' => $perSize === [] ? 0 : max($perSize), 'sizes' => $perSize];
+        return ['max' => $perSize === [] ? 0 : max($perSize), 'sizes' => $perSize, 'cells' => $cells];
     }
 }

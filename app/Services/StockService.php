@@ -29,11 +29,12 @@ class StockService
         $recipes = ProductRecipe::query()
             ->where('product_id', $product->id)
             ->where('size', $size)
+            ->with('ingredient')
             ->get();
 
         foreach ($recipes as $recipe) {
             $amount = $recipe->amount;
-            if ($less && $recipe->amount_less_sugar !== null) {
+            if ($less && $recipe->ingredient?->is_sugar && $recipe->amount_less_sugar !== null) {
                 $amount = $recipe->amount_less_sugar;
             }
             $result[$recipe->ingredient_id] = (float) $amount;
@@ -139,6 +140,9 @@ class StockService
             $running = []; // ingredient_id => hundredths
             foreach ($lines as $index => $line) {
                 $usage = $this->lineUsage($line);
+                if ($usage === []) {
+                    throw new InsufficientStockException($line['po_period_product']->product->name);
+                }
                 foreach ($usage as $ingredientId => $amount) {
                     $running[$ingredientId] = ($running[$ingredientId] ?? 0) + $this->hundredths($amount);
                     $row = $rows->get($ingredientId);
@@ -159,9 +163,9 @@ class StockService
         });
     }
 
-    public function release(Order $order): void
+    public function release(Order $order): bool
     {
-        DB::transaction(function () use ($order) {
+        return DB::transaction(function () use ($order) {
             $totals = OrderItemIngredient::query()
                 ->whereIn('order_item_id', $order->items()->select('id'))
                 ->get()
@@ -169,7 +173,7 @@ class StockService
                 ->map(fn ($g) => $g->sum(fn ($u) => $this->hundredths($u->amount)));
 
             if ($totals->isEmpty()) {
-                return;
+                return false;
             }
 
             $rows = PoPeriodIngredient::query()
@@ -184,6 +188,8 @@ class StockService
                 $row->used = $new / 100;
                 $row->save();
             }
+
+            return true;
         });
     }
 

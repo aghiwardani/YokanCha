@@ -176,6 +176,118 @@ class StockServiceTest extends TestCase
         $this->assertEquals(0.0, (float) $row->fresh()->used);
     }
 
+    public function test_reserve_throws_when_line_has_no_recipe(): void
+    {
+        [$p, $ppp] = $this->product(['Regular'], ['Normal'], 'Latte');
+        $milk = $this->ingredient('Milk');
+        $row = $this->stock($this->period, $milk, 2000, 0);
+
+        try {
+            $this->svc()->reserve($this->period->id, [
+                ['po_period_product' => $ppp, 'size' => 'Regular', 'sweetness' => 'Normal', 'qty' => 1],
+            ]);
+            $this->fail('Expected InsufficientStockException');
+        } catch (InsufficientStockException $e) {
+            $this->assertSame('Latte', $e->productName);
+        }
+
+        $this->assertEquals(0.0, (float) $row->fresh()->used);
+    }
+
+    public function test_reserve_throws_when_recipe_ingredient_has_no_stock_row(): void
+    {
+        [$p, $ppp] = $this->product(['Regular'], ['Normal'], 'Latte');
+        $milk = $this->ingredient('Milk');
+        $matcha = $this->ingredient('Matcha', 'g');
+        $row = $this->stock($this->period, $milk, 2000, 0);
+        $this->recipe($p, 'Regular', $milk, 100);
+        $this->recipe($p, 'Regular', $matcha, 4);
+
+        try {
+            $this->svc()->reserve($this->period->id, [
+                ['po_period_product' => $ppp, 'size' => 'Regular', 'sweetness' => 'Normal', 'qty' => 1],
+            ]);
+            $this->fail('Expected InsufficientStockException');
+        } catch (InsufficientStockException $e) {
+            $this->assertSame('Latte', $e->productName);
+        }
+
+        $this->assertEquals(0.0, (float) $row->fresh()->used);
+    }
+
+    public function test_reserve_returns_usage_keyed_by_each_line_index(): void
+    {
+        [$p, $ppp] = $this->product(['Regular'], ['Normal'], 'Latte');
+        [$p2, $ppp2] = $this->product(['Regular'], ['Normal'], 'Mocha');
+        $milk = $this->ingredient('Milk');
+        $cocoa = $this->ingredient('Cocoa', 'g');
+        $this->stock($this->period, $milk, 2000, 0);
+        $this->stock($this->period, $cocoa, 100, 0);
+        $this->recipe($p, 'Regular', $milk, 200);
+        $this->recipe($p2, 'Regular', $milk, 100);
+        $this->recipe($p2, 'Regular', $cocoa, 5);
+
+        $usage = $this->svc()->reserve($this->period->id, [
+            ['po_period_product' => $ppp, 'size' => 'Regular', 'sweetness' => 'Normal', 'qty' => 2],
+            ['po_period_product' => $ppp2, 'size' => 'Regular', 'sweetness' => 'Normal', 'qty' => 3],
+        ]);
+
+        $this->assertEquals([
+            0 => [$milk->id => 400.0],
+            1 => [$milk->id => 300.0, $cocoa->id => 15.0],
+        ], $usage);
+    }
+
+    public function test_reserve_handles_decimal_amount_times_qty(): void
+    {
+        [$p, $ppp] = $this->product();
+        $matcha = $this->ingredient('Matcha', 'g');
+        $row = $this->stock($this->period, $matcha, 100, 0);
+        $this->recipe($p, 'Regular', $matcha, 2.5);
+
+        $usage = $this->svc()->reserve($this->period->id, [
+            ['po_period_product' => $ppp, 'size' => 'Regular', 'sweetness' => 'Normal', 'qty' => 3],
+        ]);
+
+        $this->assertEquals([0 => [$matcha->id => 7.5]], $usage);
+        $this->assertEquals(7.5, (float) $row->fresh()->used);
+    }
+
+    public function test_less_sugar_amount_ignored_on_non_sugar_rows(): void
+    {
+        [$p] = $this->product();
+        $milk = $this->ingredient('Milk');
+        $sugar = $this->ingredient('Gula', 'g', true);
+        $this->recipe($p, 'Regular', $milk, 200, 50);
+        $this->recipe($p, 'Regular', $sugar, 20, 10);
+
+        $per = $this->svc()->perBottle($p, 'Regular', 'Less Sugar');
+
+        $this->assertEquals(200.0, $per[$milk->id]);
+        $this->assertEquals(10.0, $per[$sugar->id]);
+    }
+
+    public function test_release_returns_whether_anything_was_released(): void
+    {
+        [$p] = $this->product();
+        $milk = $this->ingredient('Milk');
+        $this->stock($this->period, $milk, 2000, 300);
+        $order = Order::create([
+            'po_period_id' => $this->period->id, 'customer_name' => 'Budi',
+            'customer_whatsapp' => '08123456789', 'payment_status' => 'unpaid',
+            'order_status' => 'new', 'order_number' => 'ORD-TEST-2',
+        ]);
+        $item = OrderItem::create([
+            'order_id' => $order->id, 'product_id' => $p->id, 'size' => 'Regular',
+            'sweetness' => 'Normal', 'qty' => 1, 'unit_price' => 1,
+        ]);
+
+        $this->assertFalse($this->svc()->release($order));
+
+        OrderItemIngredient::create(['order_item_id' => $item->id, 'ingredient_id' => $milk->id, 'amount' => 200]);
+        $this->assertTrue($this->svc()->release($order));
+    }
+
     public function test_release_returns_snapshot_not_below_zero(): void
     {
         [$p] = $this->product();

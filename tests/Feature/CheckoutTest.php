@@ -209,6 +209,24 @@ class CheckoutTest extends TestCase
         });
     }
 
+    public function test_rejects_checkout_when_recipe_was_deleted_after_adding(): void
+    {
+        $ppp = $this->makePoPeriodProduct();
+        $this->addToCart($ppp, 2);
+
+        \App\Models\ProductRecipe::query()->delete();
+
+        $response = $this->post('/checkout', [
+            'customer_name' => 'Budi Santoso',
+            'customer_whatsapp' => '081234567890',
+        ]);
+
+        $response->assertSessionHasErrors('quota');
+        $this->assertStringContainsString('Stok bahan buat', session('errors')->first('quota'));
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertEquals(0, $this->milkUsed($ppp));
+    }
+
     public function test_rejects_checkout_when_period_closed_after_adding_to_cart(): void
     {
         $ppp = $this->makePoPeriodProduct();
