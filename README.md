@@ -60,7 +60,9 @@ Kalau database sudah berjalan dengan kuota botol lama, ikuti langkah ini:
    ukuran yang dipakai produk, ditambah 250 ml, 500 ml, dan 1 liter. Kalau ada dua nama
    untuk ukuran yang sama (mis. "250ml" dan "250 ml"), centang satu saja di tiap produk.
 3. Di admin **Master Data** bagian Bahan, buat daftar bahan (tandai bahan pemanis sebagai gula, boleh lebih dari satu).
-4. Di tiap produk, centang ukuran yang dijual beserta harganya, lalu isi resep per ukuran.
+   Di bagian Tingkat Manis, cek persen gulanya (mis. Tanpa gula 0%, Less sugar 50%, Manis normal 100%, Extra manis 150%).
+4. Di tiap produk, centang ukuran yang dijual beserta harganya dan tingkat manis yang ditawarkan, lalu isi resep per ukuran
+   untuk takaran Normal. Gula untuk tingkat manis lain dihitung dari persennya.
    Resep ukuran yang belum diisi otomatis dihitung dari ukuran terkecil yang sudah punya resep.
 5. Di periode yang sedang buka, buka **Stok bahan** lalu isi jumlah yang TERSISA sekarang.
    Pesanan lama tidak tercatat memakai bahan, dan pesanan lama yang dibatalkan tidak

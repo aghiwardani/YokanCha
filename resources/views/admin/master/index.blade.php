@@ -6,12 +6,18 @@
 @php
     // After a failed submit, reopen the tab the form came from.
     $formOrigin = (string) old('_form');
-    $serverTab = str_starts_with($formOrigin, 'ingredient-') ? 'bahan' : (str_starts_with($formOrigin, 'size-') ? 'ukuran' : '');
+    $serverTab = match (true) {
+        str_starts_with($formOrigin, 'ingredient-') => 'bahan',
+        str_starts_with($formOrigin, 'size-') => 'ukuran',
+        str_starts_with($formOrigin, 'sweetness-') => 'manis',
+        default => '',
+    };
 
     $tabs = [
         'produk' => ['label' => 'Produk', 'count' => $products->count()],
         'bahan' => ['label' => 'Bahan', 'count' => $ingredients->count()],
         'ukuran' => ['label' => 'Ukuran', 'count' => $sizes->count()],
+        'manis' => ['label' => 'Tingkat Manis', 'count' => $sweetnessLevels->count()],
     ];
 @endphp
 <div class="min-h-screen bg-oat px-4 py-10 sm:py-12">
@@ -19,7 +25,7 @@
         <header class="mb-8">
             <h1 class="font-display text-4xl leading-tight text-charcoal">Master Data</h1>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-                Daftar dasar yang dipakai di seluruh aplikasi: produk yang dijual, bahan untuk resep dan stok, serta ukuran botol.
+                Daftar dasar yang dipakai di seluruh aplikasi: produk yang dijual, bahan untuk resep dan stok, ukuran botol, serta tingkat manis.
             </p>
         </header>
 
@@ -56,6 +62,7 @@
         @include('admin.master._products')
         @include('admin.master._ingredients')
         @include('admin.master._sizes')
+        @include('admin.master._sweetness')
     </div>
 </div>
 

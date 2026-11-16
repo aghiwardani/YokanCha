@@ -7,6 +7,7 @@ use App\Models\PoPeriod;
 use App\Models\PoPeriodIngredient;
 use App\Models\Product;
 use App\Models\ProductRecipe;
+use App\Models\SweetnessLevel;
 
 trait StocksMenu
 {
@@ -25,14 +26,18 @@ trait StocksMenu
         ]);
     }
 
-    protected function recipe(Product $product, string $size, Ingredient $ingredient, float $amount, ?float $lessSugar = null): ProductRecipe
+    protected function recipe(Product $product, string $size, Ingredient $ingredient, float $amount): ProductRecipe
     {
         return ProductRecipe::create([
             'product_id' => $product->id,
             'size' => $size,
             'ingredient_id' => $ingredient->id,
             'amount' => $amount,
-            'amount_less_sugar' => $lessSugar,
         ]);
+    }
+
+    protected function sweetness(string $name, int $percent): SweetnessLevel
+    {
+        return SweetnessLevel::create(['name' => $name, 'percent' => $percent]);
     }
 }

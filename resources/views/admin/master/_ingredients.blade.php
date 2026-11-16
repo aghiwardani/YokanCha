@@ -5,7 +5,7 @@
 @endphp
 <section id="bahan" role="tabpanel" aria-labelledby="tab-bahan" class="scroll-mt-8">
     <p class="mb-4 max-w-xl text-sm leading-6 text-muted">
-        Bahan baku yang stoknya kamu isi di tiap periode. Resep produk memakai bahan dari daftar ini. Bahan pemanis (gula cair, maple syrup, simple syrup) bisa ditandai gula, boleh lebih dari satu, supaya punya takaran Less sugar sendiri di resep.
+        Bahan baku yang stoknya kamu isi di tiap periode. Resep produk memakai bahan dari daftar ini. Bahan pemanis (gula cair, maple syrup, simple syrup) ditandai gula, boleh lebih dari satu: takarannya di resep ikut persen tingkat manis yang dipilih pelanggan.
     </p>
 
     <form action="{{ route('admin.ingredients.store') }}" method="POST" class="mb-4 rounded-brand border border-line bg-surface p-4">

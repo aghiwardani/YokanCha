@@ -76,6 +76,28 @@ class Product extends Model
     }
 
     /**
+     * The product's sweetness levels with their sugar percent, least sweet
+     * first (names missing from the master get a percent guessed from the
+     * wording).
+     *
+     * @return array<string, int> name => percent
+     */
+    public function sweetnessLeastFirst(): array
+    {
+        $levels = array_values($this->sweetness_options ?? []);
+        $map = SweetnessLevel::whereIn('name', $levels)->pluck('percent', 'name');
+
+        $percents = [];
+        foreach ($levels as $name) {
+            $percents[$name] = (int) ($map[$name] ?? SweetnessLevel::percentFromName($name));
+        }
+
+        uksort($percents, fn ($a, $b) => [$percents[$a], array_search($a, $levels, true)] <=> [$percents[$b], array_search($b, $levels, true)]);
+
+        return $percents;
+    }
+
+    /**
      * Unit price for the given size label. Sizes without an explicit price
      * (or products without per-size pricing) use base_price.
      */

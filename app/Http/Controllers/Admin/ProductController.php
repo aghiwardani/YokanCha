@@ -7,6 +7,7 @@ use App\Models\Ingredient;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Size;
+use App\Models\SweetnessLevel;
 use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,6 +47,7 @@ class ProductController extends Controller
         }
 
         $sizes = Size::smallestFirst()->get();
+        $sweetnessLevels = SweetnessLevel::leastSweetFirst()->get();
 
         return view('admin.products.form', [
             'product' => $product,
@@ -53,6 +55,8 @@ class ProductController extends Controller
             'sizes' => $sizes,
             // Sizes this product sells that the master doesn't know: kept as they are.
             'extraSizes' => array_values(array_diff($product->size_options ?? [], $sizes->pluck('name')->all())),
+            'sweetnessLevels' => $sweetnessLevels,
+            'extraSweetness' => array_values(array_diff($product->sweetness_options ?? [], $sweetnessLevels->pluck('name')->all())),
             'recipes' => $recipes,
             'recipeDefaults' => $this->scaledRecipeDefaults($recipes, $sizes),
         ]);
@@ -64,7 +68,7 @@ class ProductController extends Controller
      * doubles each amount). Only shown in the form; saved when submitted.
      *
      * @param  array<string, array<int, \App\Models\ProductRecipe>>  $recipes
-     * @return array<string, array{amounts: array<int, float>, less_sugar: array<int, float>}>
+     * @return array<string, array{amounts: array<int, float>}>
      */
     private function scaledRecipeDefaults(array $recipes, $sizes): array
     {
@@ -83,17 +87,12 @@ class ProductController extends Controller
 
             $factor = $size->volume_ml / $base->volume_ml;
             $amounts = [];
-            $lessSugar = [];
 
             foreach ($recipes[$base->name] as $ingredientId => $row) {
                 $amounts[$ingredientId] = round((float) $row->amount * $factor, 2);
-
-                if ($row->amount_less_sugar !== null && $row->ingredient?->is_sugar) {
-                    $lessSugar[$ingredientId] = round((float) $row->amount_less_sugar * $factor, 2);
-                }
             }
 
-            $defaults[$size->name] = ['amounts' => $amounts, 'less_sugar' => $lessSugar];
+            $defaults[$size->name] = ['amounts' => $amounts];
         }
 
         return $defaults;
@@ -153,7 +152,7 @@ class ProductController extends Controller
             }
             $request->merge(['sizes' => $sizesInput]);
         }
-        foreach (['base_price', 'recipe', 'recipe_less_sugar'] as $key) {
+        foreach (['base_price', 'recipe'] as $key) {
             if ($request->has($key)) {
                 $request->merge([$key => Number::normalizeAll($request->input($key))]);
             }
@@ -195,13 +194,18 @@ class ProductController extends Controller
             }],
             'sizes.*.on' => ['nullable'],
             'sizes.*.price' => ['nullable', 'integer', 'min:0'],
-            'sweetness_options' => ['nullable', 'string'],
+            'sweetness' => ['nullable', 'array', function (string $attribute, mixed $value, \Closure $fail) {
+                $ids = array_map('intval', array_keys((array) $value));
+                if (SweetnessLevel::whereIn('id', $ids)->count() !== count(array_unique($ids))) {
+                    $fail('Ada tingkat manis yang tidak dikenal. Muat ulang halaman, lalu coba lagi.');
+                }
+            }],
+            'sweetness.*' => ['nullable'],
             'tag' => ['nullable', 'string', 'max:40'],
             'tone' => ['nullable', 'in:'.implode(',', Product::TONES)],
             'bottle_style' => ['nullable', 'in:'.implode(',', Product::BOTTLE_STYLES)],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'recipe' => ['nullable', 'array', $amountsRule],
-            'recipe_less_sugar' => ['nullable', 'array', $amountsRule],
         ], [
             'sizes.*.price.integer' => 'Harga ukuran harus berupa angka.',
             'sizes.*.price.min' => 'Harga ukuran tidak boleh negatif.',
@@ -216,7 +220,7 @@ class ProductController extends Controller
             'base_price' => $validated['base_price'],
             'size_options' => $sizes,
             'size_prices' => $sizePrices ?: null,
-            'sweetness_options' => $this->splitOptions($validated['sweetness_options'] ?? null),
+            'sweetness_options' => $this->tickedSweetness($validated['sweetness'] ?? [], $existing),
             'tag' => $validated['tag'] ?? null,
             'tone' => $validated['tone'] ?? null,
             'bottle_style' => $validated['bottle_style'] ?? null,
@@ -226,9 +230,9 @@ class ProductController extends Controller
 
     /**
      * Replace the product's recipe rows with the submitted grid. Only amounts
-     * above zero are kept, only for the saved sizes (or '-' without sizes),
-     * and amount_less_sugar (recipe_less_sugar[size][ingredient id]) is kept
-     * only on rows of ingredients marked as sugar; there can be several.
+     * above zero are kept, only for the saved sizes (or '-' without sizes).
+     * Amounts are the Normal (100%) recipe; other sweetness levels scale the
+     * sugar ingredients by their percent.
      */
     private function syncRecipes(Request $request, Product $product): void
     {
@@ -236,7 +240,6 @@ class ProductController extends Controller
 
         $sizes = $product->size_options ?: ['-'];
         $recipe = (array) $request->input('recipe', []);
-        $lessSugar = (array) $request->input('recipe_less_sugar', []);
         $ingredients = Ingredient::all()->keyBy('id');
 
         foreach ($sizes as $size) {
@@ -247,13 +250,10 @@ class ProductController extends Controller
                     continue;
                 }
 
-                $less = is_array($lessSugar[$size] ?? null) ? ($lessSugar[$size][$ingredientId] ?? null) : null;
-
                 $product->recipes()->create([
                     'size' => $size,
                     'ingredient_id' => $ingredient->id,
                     'amount' => $amount,
-                    'amount_less_sugar' => $ingredient->is_sugar && is_numeric($less) && (float) $less > 0 ? $less : null,
                 ]);
             }
         }
@@ -302,12 +302,31 @@ class ProductController extends Controller
         return [$sizes, $prices];
     }
 
-    private function splitOptions(?string $value): array
+    /**
+     * Turn the sweetness checkboxes (sweetness[<level id>] = 1) into level
+     * names, least sweet first. Levels the product already offers that are
+     * missing from the master are kept, like sizes.
+     *
+     * @return array<int, string>
+     */
+    private function tickedSweetness(array $input, ?Product $existing = null): array
     {
-        if (! $value) {
-            return [];
+        $tickedIds = array_keys(array_filter($input, fn ($on) => ! empty($on)));
+
+        $percents = SweetnessLevel::whereIn('id', $tickedIds)->pluck('percent', 'name')->all();
+
+        if ($existing) {
+            $masterNames = SweetnessLevel::pluck('name')->all();
+            foreach ($existing->sweetness_options ?? [] as $name) {
+                if (! in_array($name, $masterNames, true)) {
+                    $percents[$name] = SweetnessLevel::percentFromName($name);
+                }
+            }
         }
 
-        return array_values(array_filter(array_map('trim', explode(',', $value)), fn ($item) => $item !== ''));
+        $names = array_keys($percents);
+        usort($names, fn ($a, $b) => [$percents[$a], $a] <=> [$percents[$b], $b]);
+
+        return $names;
     }
 }

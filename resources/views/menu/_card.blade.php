@@ -9,14 +9,17 @@
     $sizeStock = $availability[$item->id]['sizes'] ?? [];
     $soldOut = $remaining <= 0;
     $sizes = $product->sizesSmallestFirst();
-    $sweetness = $product->sweetness_options ?: [];
+    // Least sweet first; the level closest to Normal (100%) is preselected.
+    $sweetnessPercents = $product->sweetnessLeastFirst();
+    $sweetness = array_keys($sweetnessPercents);
+    $byNormalFirst = collect($sweetness)->sortBy(fn ($level) => [abs($sweetnessPercents[$level] - 100), $sweetnessPercents[$level]])->values();
     $firstSize = $sizes[0] ?? null;
     $firstEnabledSize = collect($sizes)->first(fn ($size) => ($sizeStock[$size] ?? 0) > 0);
     $cells = $availability[$item->id]['cells'] ?? [];
     $preSize = $firstEnabledSize ?? ($sizes[0] ?? '-');
     $sweetEnabled = fn ($level) => collect($cells)->contains(fn ($row) => ($row[$level] ?? 0) > 0);
-    $firstEnabledSweet = collect($sweetness)->first(fn ($level) => ($cells[$preSize][$level] ?? 0) > 0)
-        ?? collect($sweetness)->first($sweetEnabled);
+    $firstEnabledSweet = $byNormalFirst->first(fn ($level) => ($cells[$preSize][$level] ?? 0) > 0)
+        ?? $byNormalFirst->first($sweetEnabled);
     $price = $product->priceFor($firstSize);
     $rupiah = fn (int $amount) => 'Rp'.number_format($amount, 0, ',', '.');
 

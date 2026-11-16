@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SizeController;
+use App\Http\Controllers\Admin\SweetnessLevelController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -70,6 +71,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/sizes', [SizeController::class, 'store'])->name('sizes.store');
     Route::put('/sizes/{size}', [SizeController::class, 'update'])->name('sizes.update');
     Route::delete('/sizes/{size}', [SizeController::class, 'destroy'])->name('sizes.destroy');
+
+    Route::post('/sweetness', [SweetnessLevelController::class, 'store'])->name('sweetness.store');
+    Route::put('/sweetness/{level}', [SweetnessLevelController::class, 'update'])->name('sweetness.update');
+    Route::delete('/sweetness/{level}', [SweetnessLevelController::class, 'destroy'])->name('sweetness.destroy');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');

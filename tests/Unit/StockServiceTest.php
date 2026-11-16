@@ -58,25 +58,64 @@ class StockServiceTest extends TestCase
         $this->assertSame(6, $this->svc()->available($ppp, 'Regular', 'Normal'));
     }
 
-    public function test_less_sugar_uses_its_own_sugar_amount(): void
+    public function test_sugar_follows_the_sweetness_level_percent(): void
     {
-        [$p, $ppp] = $this->product();
+        [$p, $ppp] = $this->product(['Regular'], ['Less', 'Normal', 'Extra']);
+        $this->sweetness('Less', 50);
+        $this->sweetness('Normal', 100);
+        $this->sweetness('Extra', 150);
         $gula = $this->ingredient('Gula', 'g', true);
-        $this->stock($this->period, $gula, 100);
-        $this->recipe($p, 'Regular', $gula, 20, 10);
+        $this->stock($this->period, $gula, 300);
+        $this->recipe($p, 'Regular', $gula, 20);
 
-        $this->assertSame(5, $this->svc()->available($ppp, 'Regular', 'Normal'));
-        $this->assertSame(10, $this->svc()->available($ppp, 'Regular', 'Less Sugar'));
+        $this->assertSame(30, $this->svc()->available($ppp, 'Regular', 'Less'));    // 10 g each
+        $this->assertSame(15, $this->svc()->available($ppp, 'Regular', 'Normal'));  // 20 g each
+        $this->assertSame(10, $this->svc()->available($ppp, 'Regular', 'Extra'));   // 30 g each
     }
 
-    public function test_less_sugar_falls_back_to_normal_amount_when_blank(): void
+    public function test_every_sugar_ingredient_is_scaled_but_other_ingredients_are_not(): void
+    {
+        [$p] = $this->product();
+        $this->sweetness('Less', 50);
+        $milk = $this->ingredient('Milk');
+        $maple = $this->ingredient('Maple', 'ml', true);
+        $simple = $this->ingredient('Simple', 'ml', true);
+        $this->recipe($p, 'Regular', $milk, 200);
+        $this->recipe($p, 'Regular', $maple, 20);
+        $this->recipe($p, 'Regular', $simple, 7);
+
+        $per = $this->svc()->perBottle($p, 'Regular', 'Less');
+
+        $this->assertEquals(200.0, $per[$milk->id]);
+        $this->assertEquals(10.0, $per[$maple->id]);
+        $this->assertEquals(3.5, $per[$simple->id]);
+    }
+
+    public function test_no_sugar_level_uses_none_of_the_sweetener(): void
+    {
+        [$p, $ppp] = $this->product(['Regular'], ['Tanpa gula', 'Normal']);
+        $this->sweetness('Tanpa gula', 0);
+        $milk = $this->ingredient('Milk');
+        $gula = $this->ingredient('Gula', 'g', true);
+        $this->stock($this->period, $milk, 1000);
+        $this->stock($this->period, $gula, 0);
+        $this->recipe($p, 'Regular', $milk, 200);
+        $this->recipe($p, 'Regular', $gula, 20);
+
+        $this->assertSame([$milk->id => 200.0], $this->svc()->perBottle($p, 'Regular', 'Tanpa gula'));
+        $this->assertSame(5, $this->svc()->available($ppp, 'Regular', 'Tanpa gula'));
+        $this->assertSame(0, $this->svc()->available($ppp, 'Regular', 'Normal'));
+    }
+
+    public function test_level_missing_from_master_falls_back_to_a_guess_from_its_name(): void
     {
         [$p, $ppp] = $this->product();
         $gula = $this->ingredient('Gula', 'g', true);
         $this->stock($this->period, $gula, 100);
-        $this->recipe($p, 'Regular', $gula, 20, null);
+        $this->recipe($p, 'Regular', $gula, 20);
 
-        $this->assertSame(5, $this->svc()->available($ppp, 'Regular', ' less sugar '));
+        $this->assertSame(10, $this->svc()->available($ppp, 'Regular', ' less sugar '));  // 50%
+        $this->assertSame(5, $this->svc()->available($ppp, 'Regular', 'Normal'));         // 100%
     }
 
     public function test_decimal_amounts_do_not_lose_a_bottle(): void
@@ -251,20 +290,6 @@ class StockServiceTest extends TestCase
 
         $this->assertEquals([0 => [$matcha->id => 7.5]], $usage);
         $this->assertEquals(7.5, (float) $row->fresh()->used);
-    }
-
-    public function test_less_sugar_amount_ignored_on_non_sugar_rows(): void
-    {
-        [$p] = $this->product();
-        $milk = $this->ingredient('Milk');
-        $sugar = $this->ingredient('Gula', 'g', true);
-        $this->recipe($p, 'Regular', $milk, 200, 50);
-        $this->recipe($p, 'Regular', $sugar, 20, 10);
-
-        $per = $this->svc()->perBottle($p, 'Regular', 'Less Sugar');
-
-        $this->assertEquals(200.0, $per[$milk->id]);
-        $this->assertEquals(10.0, $per[$sugar->id]);
     }
 
     public function test_release_returns_whether_anything_was_released(): void

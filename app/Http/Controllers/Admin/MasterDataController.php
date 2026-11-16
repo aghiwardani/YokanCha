@@ -10,11 +10,12 @@ use App\Models\PoPeriodIngredient;
 use App\Models\Product;
 use App\Models\ProductRecipe;
 use App\Models\Size;
+use App\Models\SweetnessLevel;
 use Illuminate\View\View;
 
 /**
- * One admin page for the master lists: products (Produk), ingredients (Bahan)
- * and sizes (Ukuran). The product form itself stays on its own page. Besides
+ * One admin page for the master lists: products (Produk), ingredients (Bahan),
+ * sizes (Ukuran) and sweetness levels (Tingkat Manis). The product form itself stays on its own page. Besides
  * the lists, it works out how each row is used so the page can say why
  * something can't be deleted, or which recipe is still missing.
  */
@@ -56,7 +57,14 @@ class MasterDataController extends Controller
             'products' => $products->filter(fn (Product $product) => in_array($size->name, $product->size_options ?? [], true))->count(),
         ]]);
 
+        $sweetnessLevels = SweetnessLevel::leastSweetFirst()->get();
+        $sweetnessInfo = $sweetnessLevels->mapWithKeys(fn (SweetnessLevel $level) => [$level->id => [
+            'products' => $products->filter(fn (Product $product) => in_array($level->name, $product->sweetness_options ?? [], true))->count(),
+        ]]);
+
         return view('admin.master.index', [
+            'sweetnessLevels' => $sweetnessLevels,
+            'sweetnessInfo' => $sweetnessInfo,
             'products' => $products,
             'ingredients' => $ingredients,
             'sizes' => $sizes,

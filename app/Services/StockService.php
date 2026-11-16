@@ -9,21 +9,33 @@ use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use App\Models\ProductRecipe;
+use App\Models\SweetnessLevel;
 use Illuminate\Support\Facades\DB;
 
 class StockService
 {
-    public function isLessSugar(string $sweetness): bool
+    /** @var array<string, int>|null sweetness name => percent, loaded once per service */
+    private ?array $sweetnessPercents = null;
+
+    /**
+     * Percent of the Normal sugar amount used at this sweetness level.
+     */
+    public function sugarPercent(string $sweetness): int
     {
-        return mb_strtolower(trim($sweetness)) === 'less sugar';
+        $this->sweetnessPercents ??= SweetnessLevel::percentMap();
+
+        return SweetnessLevel::percentFor($sweetness, $this->sweetnessPercents);
     }
 
     /**
+     * Amount of each ingredient in one bottle. Recipes hold the Normal amount;
+     * sugar ingredients are scaled by the sweetness level's percent.
+     *
      * @return array<int,float> ingredient_id => amount per bottle (empty = no recipe)
      */
     public function perBottle(Product $product, string $size, string $sweetness): array
     {
-        $less = $this->isLessSugar($sweetness);
+        $percent = $this->sugarPercent($sweetness);
         $result = [];
 
         $recipes = ProductRecipe::query()
@@ -33,11 +45,14 @@ class StockService
             ->get();
 
         foreach ($recipes as $recipe) {
-            $amount = $recipe->amount;
-            if ($less && $recipe->ingredient?->is_sugar && $recipe->amount_less_sugar !== null) {
-                $amount = $recipe->amount_less_sugar;
+            $amount = (float) $recipe->amount;
+            if ($recipe->ingredient?->is_sugar) {
+                $amount = round($amount * $percent / 100, 2);
             }
-            $result[$recipe->ingredient_id] = (float) $amount;
+            // "Tanpa gula" needs none of that sweetener at all.
+            if ($amount > 0) {
+                $result[$recipe->ingredient_id] = $amount;
+            }
         }
 
         return $result;

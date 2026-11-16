@@ -130,18 +130,39 @@
                     @enderror
                 </fieldset>
 
-                <div>
-                    <label for="sweetness_options" class="block text-sm font-semibold text-charcoal mb-2">Tingkat Manis</label>
-                    <input
-                        type="text"
-                        id="sweetness_options"
-                        name="sweetness_options"
-                        placeholder="Contoh: Normal, Kurang Gula"
-                        value="{{ old('sweetness_options', implode(', ', $product->sweetness_options ?? [])) }}"
-                        class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('sweetness_options') border-red-500 @enderror"
-                    />
-                    <p class="text-xs text-charcoal opacity-75 mt-1">Pisahkan dengan koma.</p>
-                </div>
+                <fieldset>
+                    <legend class="block text-sm font-semibold text-charcoal mb-2">Tingkat Manis</legend>
+                    @if ($sweetnessLevels->isEmpty())
+                        <p class="text-xs text-charcoal opacity-75">Belum ada tingkat manis. Tambahkan dulu di halaman <a href="{{ route('admin.master') }}#manis" class="underline">Tingkat Manis</a>.</p>
+                    @else
+                        @php
+                            $oldSweetness = old('sweetness');
+                            // After a failed save, show what was ticked (name is always posted).
+                            $hasOldForm = old('name') !== null;
+                            $sweetnessTicked = fn ($level) => $hasOldForm
+                                ? ! empty(($oldSweetness ?? [])[$level->id] ?? null)
+                                : in_array($level->name, $product->sweetness_options ?? [], true);
+                        @endphp
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($sweetnessLevels as $level)
+                                <label class="flex items-center gap-2 rounded-chip border border-line bg-surface px-3 py-2 text-sm text-charcoal">
+                                    <input type="checkbox" name="sweetness[{{ $level->id }}]" value="1" @checked($sweetnessTicked($level)) />
+                                    {{ $level->name }}
+                                    <span class="text-xs text-muted">{{ $level->percent }}%</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Centang tingkat manis yang bisa dipilih pelanggan. Persen menunjukkan berapa banyak gula yang dipakai dibanding takaran Normal di resep. Tidak dicentang sama sekali = tanpa pilihan manis.</p>
+                    @endif
+                    @foreach ($extraSweetness as $extra)
+                        <p class="mt-2 p-2 text-xs text-charcoal bg-amber-50 border-2 border-amber-400 rounded-brand">
+                            {{ $extra }} belum ada di daftar Tingkat Manis. Pilihan ini tetap ditawarkan (gulanya {{ App\Models\SweetnessLevel::percentFromName($extra) }}% dari Normal). Tambahkan di halaman <a href="{{ route('admin.master') }}#manis" class="underline">Tingkat Manis</a> dengan nama yang persis sama supaya bisa diatur di sini.
+                        </p>
+                    @endforeach
+                    @error('sweetness')
+                        <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </fieldset>
 
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
@@ -204,7 +225,6 @@
                     // Columns whose amounts come from scaling, not from a saved recipe.
                     $isAutoColumn = fn ($size) => ! is_array(old('recipe')) && isset($recipeDefaults[$size]);
                     $oldRecipe = old('recipe');
-                    $oldLessSugar = old('recipe_less_sugar');
                     $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
                     // Saved amount, else the amount scaled from the smallest saved size.
                     $recipeValue = function ($size, $ingredientId) use ($oldRecipe, $recipes, $recipeDefaults, $fmt) {
@@ -216,19 +236,6 @@
                         }
 
                         return isset($recipeDefaults[$size]['amounts'][$ingredientId]) ? $fmt($recipeDefaults[$size]['amounts'][$ingredientId]) : '';
-                    };
-                    // Less-sugar amount of one sugar ingredient (each sweetener has its own).
-                    $lessSugarValue = function ($size, $ingredientId) use ($oldLessSugar, $oldRecipe, $recipes, $recipeDefaults, $fmt) {
-                        if (is_array($oldRecipe) || is_array($oldLessSugar)) {
-                            return $oldLessSugar[$size][$ingredientId] ?? '';
-                        }
-                        if (isset($recipes[$size])) {
-                            $less = $recipes[$size][$ingredientId]->amount_less_sugar ?? null;
-                        } else {
-                            $less = $recipeDefaults[$size]['less_sugar'][$ingredientId] ?? null;
-                        }
-
-                        return $less !== null ? $fmt($less) : '';
                     };
                 @endphp
 
@@ -250,7 +257,12 @@
                                 <tbody>
                                     @foreach ($ingredients as $ingredient)
                                         <tr>
-                                            <td class="py-1 pr-3 text-charcoal">{{ $ingredient->name }} ({{ $ingredient->unit }})</td>
+                                            <td class="py-1 pr-3 text-charcoal">
+                                                {{ $ingredient->name }} ({{ $ingredient->unit }})
+                                                @if ($ingredient->is_sugar)
+                                                    <span class="block text-xs text-muted">Gula: takaran Normal, ikut persen tingkat manis</span>
+                                                @endif
+                                            </td>
                                             @foreach ($recipeSizes as $size)
                                                 <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
                                                     <input
@@ -265,28 +277,11 @@
                                                 </td>
                                             @endforeach
                                         </tr>
-                                        @if ($ingredient->is_sugar)
-                                            <tr>
-                                                <td class="py-1 pr-3 pl-4 text-charcoal opacity-75">↳ {{ $ingredient->name }} saat Less sugar ({{ $ingredient->unit }})</td>
-                                                @foreach ($recipeSizes as $size)
-                                                    <td class="py-1 px-1 {{ $isAutoColumn($size) ? 'bg-amber-50' : '' }}" data-recipe-col="{{ $size }}">
-                                                        <input
-                                                            type="text" inputmode="decimal" data-number
-                                                            step="0.01"
-                                                            min="0"
-                                                            name="recipe_less_sugar[{{ $size }}][{{ $ingredient->id }}]"
-                                                            value="{{ $lessSugarValue($size, $ingredient->id) }}"
-                                                            aria-label="{{ $ingredient->name }} saat Less sugar untuk {{ $size === '-' ? 'satu ukuran' : $size }}"
-                                                            class="w-24 px-2 py-1 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
-                                                        />
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                        @endif
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
+                        <p class="text-xs text-charcoal opacity-75 mt-1">Isi resep untuk tingkat manis Normal. Takaran bahan gula untuk tingkat lain dihitung otomatis dari persennya (mis. Less sugar 50% = setengahnya).</p>
                         <p class="text-xs text-charcoal opacity-75 mt-1">Kosongkan bahan yang tidak dipakai. Kolom bertanda <strong>(otomatis)</strong> belum punya resep tersimpan: angkanya dihitung dari ukuran terkecil yang sudah punya resep (sesuai isi ml) dan ikut tersimpan saat kamu menekan simpan, jadi sesuaikan dulu kalau perlu.</p>
                         <script>
                             // Show only the recipe columns of ticked sizes; "Satu ukuran"

@@ -15,12 +15,12 @@ class ProductRecipe extends Model
         'size',
         'ingredient_id',
         'amount',
-        'amount_less_sugar',
     ];
 
+    // amount is the Normal (100%) amount; sugar ingredients are scaled by the
+    // chosen sweetness level's percent (see StockService::perBottle).
     protected $casts = [
         'amount' => 'decimal:2',
-        'amount_less_sugar' => 'decimal:2',
     ];
 
     public function product(): BelongsTo

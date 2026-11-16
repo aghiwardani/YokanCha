@@ -9,6 +9,7 @@ use App\Models\PoPeriodProduct;
 use App\Models\Product;
 use App\Models\ProductRecipe;
 use App\Models\Size;
+use App\Models\SweetnessLevel;
 use Illuminate\Database\Seeder;
 
 /**
@@ -27,7 +28,9 @@ class MenuDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $sweetness = ['Manis normal', 'Less sugar'];
+        // Sugar for each level = recipe's Normal amount x percent.
+        $sweetnessLevels = ['Tanpa gula' => 0, 'Less sugar' => 50, 'Manis normal' => 100, 'Extra manis' => 150];
+        $sweetness = ['Less sugar', 'Manis normal', 'Extra manis'];
 
         $products = [
             [
@@ -90,6 +93,9 @@ class MenuDemoSeeder extends Seeder
         foreach (['250 ml' => 250, '500 ml' => 500, '1 liter' => 1000] as $name => $volume) {
             Size::firstOrCreate(['name' => $name], ['volume_ml' => $volume]);
         }
+        foreach ($sweetnessLevels as $name => $percent) {
+            SweetnessLevel::firstOrCreate(['name' => $name], ['percent' => $percent]);
+        }
 
         $ingredients = [];
         foreach ($ingredientDefs as $name => [$unit, $stock, $isSugar]) {
@@ -122,7 +128,8 @@ class MenuDemoSeeder extends Seeder
                     'base_price' => reset($data['size_prices']),
                     'size_options' => array_keys($data['size_prices']),
                     'size_prices' => $data['size_prices'],
-                    'sweetness_options' => $sweetness,
+                    // Matcha Murni has no sugar, so no sweetness choice.
+                    'sweetness_options' => $recipes[$data['name']][2] ? $sweetness : [],
                     'tag' => $data['tag'],
                     'tone' => $data['tone'],
                     'bottle_style' => $data['bottle_style'],
@@ -135,19 +142,19 @@ class MenuDemoSeeder extends Seeder
             );
 
             [$matcha, $milk, $sugar] = $recipes[$data['name']];
-            $rows = [[$matcha, 4, null]];
+            $rows = [[$matcha, 4]];
             if ($milk) {
-                $rows[] = [$milk, 200, null];
+                $rows[] = [$milk, 200];
             }
             if ($sugar) {
-                $rows[] = ['Gula cair', 15, 8];
+                $rows[] = ['Gula cair', 15];
             }
-            // 250 ml amounts; 1 liter is 4x.
+            // 250 ml amounts (Normal sweetness); 1 liter is 4x.
             foreach (['250 ml' => 1, '1 liter' => 4] as $size => $factor) {
-                foreach ($rows as [$ingredientName, $amount, $lessSugar]) {
+                foreach ($rows as [$ingredientName, $amount]) {
                     ProductRecipe::updateOrCreate(
                         ['product_id' => $product->id, 'size' => $size, 'ingredient_id' => $ingredients[$ingredientName]->id],
-                        ['amount' => $amount * $factor, 'amount_less_sugar' => $lessSugar === null ? null : $lessSugar * $factor],
+                        ['amount' => $amount * $factor],
                     );
                 }
             }

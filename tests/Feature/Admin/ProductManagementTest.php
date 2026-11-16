@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\PoPeriod;
 use App\Models\Product;
 use App\Models\Size;
+use App\Models\SweetnessLevel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\StocksMenu;
@@ -24,7 +25,7 @@ class ProductManagementTest extends TestCase
             'description' => 'Teh dingin dengan lemon segar',
             'base_price' => 15000,
             'sizes' => $this->sizes(['250ml' => null, '1L' => null]),
-            'sweetness_options' => 'Normal, Kurang Gula',
+            'sweetness' => $this->sweetnessPicks(['Normal', 'Kurang Gula']),
         ]);
 
         $response->assertRedirect('/admin/master#produk');
@@ -37,7 +38,32 @@ class ProductManagementTest extends TestCase
 
         $product = Product::where('name', 'Es Teh Lemon')->first();
         $this->assertSame(['250ml', '1L'], $product->size_options);
-        $this->assertSame(['Normal', 'Kurang Gula'], $product->sweetness_options);
+        // Least sweet first: Kurang Gula (50%) before Normal (100%).
+        $this->assertSame(['Kurang Gula', 'Normal'], $product->sweetness_options);
+    }
+
+    public function test_unknown_sweetness_level_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->post('/admin/products', $this->productPayload(['sweetness' => [999 => '1']]))
+            ->assertSessionHasErrors('sweetness');
+
+        $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_form_lists_sweetness_levels_with_percent(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $less = $this->sweetness('Less sugar', 50);
+        $this->sweetness('Extra manis', 150);
+        $product = Product::factory()->create(['sweetness_options' => ['Less sugar']]);
+
+        $html = $this->get("/admin/products/{$product->id}/edit")->assertOk()
+            ->assertSeeInOrder(['Less sugar', '50%', 'Extra manis', '150%'])
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/name="sweetness\['.$less->id.'\]"[^>]*checked/', $html);
     }
 
     public function test_admin_can_set_price_per_size_and_display_fields(): void
@@ -48,7 +74,7 @@ class ProductManagementTest extends TestCase
             'name' => 'Maple Matcha Latte',
             'base_price' => 32000,
             'sizes' => $this->sizes(['250 ml' => 32000, '1 liter' => 110000]),
-            'sweetness_options' => 'Manis normal, Less sugar',
+            'sweetness' => $this->sweetnessPicks(['Manis normal', 'Less sugar']),
             'tag' => 'Maple Signature',
             'tone' => 'amber',
             'bottle_style' => 'maple',
@@ -93,7 +119,7 @@ class ProductManagementTest extends TestCase
             'description' => $product->description,
             'base_price' => $product->base_price,
             'sizes' => $this->sizes(array_fill_keys($product->size_options ?? [], null)),
-            'sweetness_options' => implode(', ', $product->sweetness_options ?? []),
+            'sweetness' => $this->sweetnessPicks($product->sweetness_options ?? []),
         ]);
 
         $response->assertRedirect('/admin/master#produk');
@@ -110,7 +136,7 @@ class ProductManagementTest extends TestCase
             'name' => 'Maple Matcha Latte',
             'base_price' => 32000,
             'sizes' => $this->sizes(['250 ml' => 32000, '1 liter' => 110000]),
-            'sweetness_options' => 'Manis normal, Less sugar',
+            'sweetness' => $this->sweetnessPicks(['Manis normal', 'Less sugar']),
         ], $extra);
     }
 
@@ -127,6 +153,24 @@ class ProductManagementTest extends TestCase
         foreach ($prices as $name => $price) {
             $size = Size::firstOrCreate(['name' => $name], ['volume_ml' => Size::volumeFromName($name)]);
             $payload[$size->id] = ['on' => '1', 'price' => $price === null ? '' : (string) $price];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Form payload for the sweetness checkboxes: creates any missing master
+     * levels (percent guessed from the name) and ticks them.
+     *
+     * @param  array<int, string>  $names
+     */
+    private function sweetnessPicks(array $names): array
+    {
+        $payload = [];
+
+        foreach ($names as $name) {
+            $level = SweetnessLevel::firstOrCreate(['name' => $name], ['percent' => SweetnessLevel::percentFromName($name)]);
+            $payload[$level->id] = '1';
         }
 
         return $payload;
@@ -152,23 +196,16 @@ class ProductManagementTest extends TestCase
         $this->assertEquals(800, $product->recipes()->where('size', '1 liter')->where('ingredient_id', $milk->id)->first()->amount);
     }
 
-    public function test_less_sugar_amount_saved_on_sugar_row(): void
+    public function test_recipe_form_has_no_less_sugar_inputs_and_labels_sugar_as_normal_amount(): void
     {
         $this->actingAs(User::factory()->admin()->create());
-        $matcha = $this->ingredient('Matcha', 'g');
-        $sugar = $this->ingredient('Gula', 'g', true);
+        $this->ingredient('Gula', 'g', true);
+        Size::create(['name' => '250 ml', 'volume_ml' => 250]);
 
-        $this->post('/admin/products', $this->productPayload([
-            'recipe' => ['250 ml' => [$matcha->id => '3', $sugar->id => '20']],
-            'recipe_less_sugar' => ['250 ml' => [$sugar->id => '10'], '1 liter' => [$sugar->id => '40']],
-        ]))->assertRedirect('/admin/master#produk');
-
-        $product = Product::where('name', 'Maple Matcha Latte')->first();
-        $sugarRow = $product->recipes()->where('ingredient_id', $sugar->id)->first();
-        $this->assertEquals(20, $sugarRow->amount);
-        $this->assertEquals(10, $sugarRow->amount_less_sugar);
-        $this->assertNull($product->recipes()->where('ingredient_id', $matcha->id)->first()->amount_less_sugar);
-        $this->assertSame(2, $product->recipes()->count());
+        $this->get('/admin/products/create')
+            ->assertOk()
+            ->assertDontSee('recipe_less_sugar', false)
+            ->assertSee('Gula: takaran Normal, ikut persen tingkat manis');
     }
 
     public function test_amounts_typed_the_indonesian_way_are_read_correctly(): void
@@ -188,25 +225,6 @@ class ProductManagementTest extends TestCase
         $this->assertEquals(1000, $product->recipes()->where('ingredient_id', $milk->id)->value('amount'));
     }
 
-    public function test_each_sugar_ingredient_has_its_own_less_sugar_amount(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
-        $maple = $this->ingredient('Maple Syrup', 'ml', true);
-        $simple = $this->ingredient('Simple Syrup', 'ml', true);
-
-        $this->post('/admin/products', $this->productPayload([
-            'recipe' => ['250 ml' => [$maple->id => '20', $simple->id => '10']],
-            'recipe_less_sugar' => ['250 ml' => [$maple->id => '12', $simple->id => '4']],
-        ]))->assertRedirect('/admin/master#produk');
-
-        $product = Product::where('name', 'Maple Matcha Latte')->first();
-        $this->assertEquals(12, $product->recipes()->where('ingredient_id', $maple->id)->first()->amount_less_sugar);
-        $this->assertEquals(4, $product->recipes()->where('ingredient_id', $simple->id)->first()->amount_less_sugar);
-
-        $this->get("/admin/products/{$product->id}/edit")
-            ->assertSee('name="recipe_less_sugar[250 ml]['.$maple->id.']"', false)
-            ->assertSee('name="recipe_less_sugar[250 ml]['.$simple->id.']"', false);
-    }
 
     public function test_blank_amounts_are_not_saved(): void
     {
@@ -275,16 +293,15 @@ class ProductManagementTest extends TestCase
         Size::create(['name' => '250 ml', 'volume_ml' => 250]);
         $product = Product::factory()->create(['size_options' => ['250 ml'], 'size_prices' => null]);
         $this->recipe($product, '250 ml', $matcha, 3);
-        $this->recipe($product, '250 ml', $sugar, 20, 10);
+        $this->recipe($product, '250 ml', $sugar, 20);
 
         $response = $this->get("/admin/products/{$product->id}/edit");
 
         $response->assertOk();
         $response->assertSee('name="recipe[250 ml]['.$matcha->id.']"', false);
-        $response->assertSee('name="recipe_less_sugar[250 ml]['.$sugar->id.']"', false);
+        $response->assertSee('name="recipe[250 ml]['.$sugar->id.']"', false);
         $response->assertSee('value="3"', false);
         $response->assertSee('value="20"', false);
-        $response->assertSee('value="10"', false);
         $response->assertSee('Less sugar');
     }
 
@@ -317,8 +334,8 @@ class ProductManagementTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
 
         $this->post('/admin/products', [
-            'name' => 'Latte', 'base_price' => 10000, 'recipe' => 'abc', 'recipe_less_sugar' => 'abc',
-        ])->assertSessionHasErrors(['recipe', 'recipe_less_sugar']);
+            'name' => 'Latte', 'base_price' => 10000, 'recipe' => 'abc',
+        ])->assertSessionHasErrors(['recipe']);
 
         $this->assertDatabaseCount('products', 0);
     }
@@ -458,7 +475,7 @@ class ProductManagementTest extends TestCase
         $product = Product::factory()->create(['size_options' => ['250 ml', '1 liter'], 'size_prices' => null]);
         $this->recipe($product, '250 ml', $matcha, 4);
         $this->recipe($product, '250 ml', $milk, 200);
-        $this->recipe($product, '250 ml', $sugar, 15, 7.5);
+        $this->recipe($product, '250 ml', $sugar, 15);
         $this->recipe($product, '1 liter', $matcha, 15); // saved recipe wins over scaling
 
         $html = $this->get("/admin/products/{$product->id}/edit")->assertOk()->getContent();
@@ -466,7 +483,6 @@ class ProductManagementTest extends TestCase
         $this->assertMatchesRegularExpression('/name="recipe\[500 ml\]\['.$matcha->id.'\]"\s+value="8"/', $html);
         $this->assertMatchesRegularExpression('/name="recipe\[500 ml\]\['.$milk->id.'\]"\s+value="400"/', $html);
         $this->assertMatchesRegularExpression('/name="recipe\[500 ml\]\['.$sugar->id.'\]"\s+value="30"/', $html);
-        $this->assertMatchesRegularExpression('/name="recipe_less_sugar\[500 ml\]\['.$sugar->id.'\]"\s+value="15"/', $html);
         $this->assertMatchesRegularExpression('/name="recipe\[1 liter\]\['.$matcha->id.'\]"\s+value="15"/', $html);
         $this->assertMatchesRegularExpression('/name="recipe\[1 liter\]\['.$milk->id.'\]"\s+value=""/', $html);
     }
