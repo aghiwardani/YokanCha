@@ -2,15 +2,21 @@
 
 namespace Database\Seeders;
 
+use App\Models\Ingredient;
 use App\Models\PoPeriod;
+use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
+use App\Models\ProductRecipe;
 use Illuminate\Database\Seeder;
 
 /**
  * Seeds the five menu items shown in the Figma mockup ("Menu batch ini") and
  * adds each to the currently open PO period (creating one if none is open).
- * Safe to re-run: products are matched by name and batch membership is upserted.
+ * Also seeds the ingredient list, stocks it in that period, and gives each menu
+ * a per-size recipe so the menu is orderable right after seeding.
+ * Safe to re-run: products/ingredients/recipes are upserted; existing period
+ * stock rows are left untouched so `used` (and any admin-edited stock) is kept.
  *
  *   php artisan db:seed --class=MenuDemoSeeder
  */
@@ -70,6 +76,36 @@ class MenuDemoSeeder extends Seeder
             'status' => 'open',
         ]);
 
+        $ingredientDefs = [
+            'Matcha Longji' => ['g', 100, false],
+            'Matcha Tokyo' => ['g', 100, false],
+            'Fresh Milk' => ['ml', 2000, false],
+            'Oatside' => ['ml', 2000, false],
+            'Cashew Milk' => ['ml', 2000, false],
+            'Gula cair' => ['ml', 500, true],
+        ];
+        $ingredients = [];
+        foreach ($ingredientDefs as $name => [$unit, $stock, $isSugar]) {
+            $ingredients[$name] = Ingredient::updateOrCreate(
+                ['name' => $name],
+                ['unit' => $unit, 'is_sugar' => $isSugar],
+            );
+            // Create only: never reset `used` or overwrite stock on re-run.
+            PoPeriodIngredient::firstOrCreate(
+                ['po_period_id' => $period->id, 'ingredient_id' => $ingredients[$name]->id],
+                ['stock' => $stock, 'used' => 0],
+            );
+        }
+
+        // product name => [matcha, milk (null = none), sugar (false = none)]
+        $recipes = [
+            'Maple Matcha Latte' => ['Matcha Longji', 'Fresh Milk', true],
+            'Matcha Latte Klasik' => ['Matcha Tokyo', 'Fresh Milk', true],
+            'Matcha Oat' => ['Matcha Tokyo', 'Oatside', true],
+            'Matcha Murni' => ['Matcha Longji', null, false],
+            'Strawberry Matcha' => ['Matcha Tokyo', 'Fresh Milk', true],
+        ];
+
         foreach ($products as $index => $data) {
             $product = Product::updateOrCreate(
                 ['name' => $data['name']],
@@ -90,6 +126,24 @@ class MenuDemoSeeder extends Seeder
             PoPeriodProduct::updateOrCreate(
                 ['po_period_id' => $period->id, 'product_id' => $product->id],
             );
+
+            [$matcha, $milk, $sugar] = $recipes[$data['name']];
+            $rows = [[$matcha, 4, null]];
+            if ($milk) {
+                $rows[] = [$milk, 200, null];
+            }
+            if ($sugar) {
+                $rows[] = ['Gula cair', 15, 8];
+            }
+            // 250 ml amounts; 1 liter is 4x.
+            foreach (['250 ml' => 1, '1 liter' => 4] as $size => $factor) {
+                foreach ($rows as [$ingredientName, $amount, $lessSugar]) {
+                    ProductRecipe::updateOrCreate(
+                        ['product_id' => $product->id, 'size' => $size, 'ingredient_id' => $ingredients[$ingredientName]->id],
+                        ['amount' => $amount * $factor, 'amount_less_sugar' => $lessSugar === null ? null : $lessSugar * $factor],
+                    );
+                }
+            }
         }
     }
 }
