@@ -3,6 +3,10 @@
 @section('title', 'Bahan - YokanCha')
 
 @section('admin-content')
+@php
+    // Old input belongs to the add form only when that form was the one submitted.
+    $addOld = fn (string $key) => old('_form') === 'new' ? old($key) : null;
+@endphp
 <div class="min-h-screen bg-oat py-12 px-4">
     <div class="max-w-3xl mx-auto space-y-8">
         <h1 class="text-3xl font-bold text-charcoal">Bahan</h1>
@@ -13,21 +17,22 @@
             </div>
         @endif
 
-        @if ($errors->any())
-            <div class="p-4 bg-red-50 border-2 border-red-500 rounded-brand">
-                <ul class="text-red-600 text-sm space-y-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
         <div class="bg-surface rounded-brand shadow-sm p-8">
             <h2 class="text-xl font-bold text-charcoal mb-6">Tambah Bahan</h2>
 
             <form action="{{ route('admin.ingredients.store') }}" method="POST" class="space-y-6">
                 @csrf
+                <input type="hidden" name="_form" value="new" />
+
+                @if (old('_form') === 'new' && $errors->any())
+                    <div class="w-full p-3 bg-red-50 border-2 border-red-500 rounded-brand">
+                        <ul class="text-red-600 text-sm space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="sm:col-span-2">
@@ -36,7 +41,7 @@
                             type="text"
                             id="new_name"
                             name="name"
-                            value="{{ old('name') }}"
+                            value="{{ $addOld('name') }}"
                             class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
                         />
                     </div>
@@ -47,14 +52,14 @@
                             name="unit"
                             class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
                         >
-                            <option value="g" @selected(old('unit') === 'g')>g</option>
-                            <option value="ml" @selected(old('unit') === 'ml')>ml</option>
+                            <option value="g" @selected($addOld('unit') === 'g')>g</option>
+                            <option value="ml" @selected($addOld('unit') === 'ml')>ml</option>
                         </select>
                     </div>
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-charcoal">
-                    <input type="checkbox" name="is_sugar" value="1" @checked(old('is_sugar')) />
+                    <input type="checkbox" name="is_sugar" value="1" @checked($addOld('is_sugar')) />
                     Ini adalah gula
                 </label>
 
@@ -75,6 +80,7 @@
             @else
                 <div class="space-y-4">
                     @foreach ($ingredients as $ingredient)
+                        @php $failed = old('_form') === 'row-'.$ingredient->id; @endphp
                         <form
                             action="{{ route('admin.ingredients.update', $ingredient) }}"
                             method="POST"
@@ -82,11 +88,22 @@
                         >
                             @csrf
                             @method('PUT')
+                            <input type="hidden" name="_form" value="row-{{ $ingredient->id }}" />
+
+                            @if ($failed && $errors->any())
+                                <div class="w-full p-3 bg-red-50 border-2 border-red-500 rounded-brand">
+                                    <ul class="text-red-600 text-sm space-y-1">
+                                        @foreach ($errors->all() as $error)
+                                            <li>{{ $error }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
 
                             <input
                                 type="text"
                                 name="name"
-                                value="{{ $ingredient->name }}"
+                                value="{{ $failed ? old('name') : $ingredient->name }}"
                                 aria-label="Nama bahan"
                                 class="flex-1 min-w-[10rem] px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
                             />
@@ -95,11 +112,11 @@
                                 aria-label="Satuan"
                                 class="px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta"
                             >
-                                <option value="g" @selected($ingredient->unit === 'g')>g</option>
-                                <option value="ml" @selected($ingredient->unit === 'ml')>ml</option>
+                                <option value="g" @selected(($failed ? old('unit') : $ingredient->unit) === 'g')>g</option>
+                                <option value="ml" @selected(($failed ? old('unit') : $ingredient->unit) === 'ml')>ml</option>
                             </select>
                             <label class="flex items-center gap-2 text-sm text-charcoal">
-                                <input type="checkbox" name="is_sugar" value="1" @checked($ingredient->is_sugar) />
+                                <input type="checkbox" name="is_sugar" value="1" @checked($failed ? old('is_sugar') : $ingredient->is_sugar) />
                                 Gula
                             </label>
                             <button
