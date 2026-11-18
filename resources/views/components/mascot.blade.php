@@ -11,10 +11,10 @@
 @php
     // Full-size width of each WebP (public/images/landing/yoka-{name}.webp).
     $fullWidth = [
-        'hero' => 938,
-        'lean' => 1079,
-        'thumbs' => 1019,
-        'chasen' => 926,
+        'hero' => 940,
+        'lean' => 1083,
+        'thumbs' => 1024,
+        'chasen' => 929,
     ][$name];
     $base = asset("images/landing/yoka-{$name}");
 @endphp
