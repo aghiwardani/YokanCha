@@ -17,12 +17,27 @@
     }
 
     /*
-     * The Figma desktop frame (1440px) feels oversized at 100% browser zoom on
-     * typical laptop screens, so customer pages are scaled down on desktop.
-     * Change --yc-desktop-scale to adjust (1 = Figma size). Mobile is unscaled.
+     * Customer pages scale with the screen on desktop so the Figma composition
+     * keeps its proportions: 0.9 on laptops (the 1440px frame feels oversized
+     * at 100%), growing with the window on large monitors (1600px = 1.0,
+     * 1920px = 1.2, up to 1.6 at 2560px+). An inline script in the layout sets
+     * the exact value from the window width; these steps are the fallback
+     * without JavaScript. Mobile is unscaled.
      */
     :root {
         --yc-desktop-scale: 0.9;
+    }
+
+    @media (min-width: 1920px) {
+        :root {
+            --yc-desktop-scale: 1.2;
+        }
+    }
+
+    @media (min-width: 2560px) {
+        :root {
+            --yc-desktop-scale: 1.6;
+        }
     }
 
     @media (min-width: 1024px) {

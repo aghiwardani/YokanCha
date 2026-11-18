@@ -12,6 +12,21 @@
         <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Gloock&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+        @unless (request()->routeIs('admin.*'))
+            {{-- Fluid desktop scale (see app.css): window width / 1600, kept between 0.9 and 1.6. Runs before paint so nothing jumps. --}}
+            <script>
+                (function () {
+                    var root = document.documentElement;
+                    function fit() {
+                        var scale = Math.min(1.6, Math.max(0.9, window.innerWidth / 1600));
+                        root.style.setProperty('--yc-desktop-scale', scale.toFixed(3));
+                    }
+                    fit();
+                    window.addEventListener('resize', fit);
+                })();
+            </script>
+        @endunless
     </head>
     <body class="overflow-x-hidden bg-oat font-sans text-charcoal antialiased">
         <div id="app">
