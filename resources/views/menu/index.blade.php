@@ -93,7 +93,7 @@
             <div class="group relative hidden h-[540px] w-[500px] shrink-0 overflow-hidden rounded-card border border-charcoal bg-brand lg:block" aria-hidden="true">
                 <img src="{{ asset('images/landing/hero-leaf-pattern.svg') }}" alt="" class="absolute left-[-2px] top-[8px] h-[523.4px] w-[481.3px] max-w-none">
                 <img src="{{ asset('images/landing/hero-floor-shadow.svg') }}" alt="" class="yc-mascot-shadow absolute left-[94px] top-[491px] h-[26px] w-[310px] max-w-none">
-                <img src="{{ asset('images/landing/yoka-hero.png') }}" alt="" class="yc-mascot yc-mascot-float absolute left-[79px] top-[37.89px] h-[464px] w-[339px] max-w-none object-cover">
+                <x-mascot name="hero" sizes="339px" class="yc-mascot yc-mascot-float absolute left-[79px] top-[37.89px] h-[464px] w-[339px] max-w-none object-cover" />
 
                 <div class="absolute left-[13px] top-[13px] h-[104px] w-[104px]">
                     <img src="{{ asset('images/landing/hero-seal.svg') }}" alt="" class="absolute inset-0 h-full w-full">
@@ -111,7 +111,7 @@
             {{-- Panggung maskot: mobile --}}
             <div class="relative h-[340px] w-full overflow-hidden rounded-card bg-brand lg:hidden" aria-hidden="true">
                 <div class="absolute left-1/2 top-10 h-[280px] w-[200px] -translate-x-1/2">
-                    <img src="{{ asset('images/landing/yoka-hero.png') }}" alt="" class="yc-mascot yc-mascot-float h-full w-full object-contain">
+                    <x-mascot name="hero" sizes="(min-width: 1024px) 339px, 260px" class="yc-mascot yc-mascot-float h-full w-full object-contain" />
                 </div>
                 <span class="yc-tag-amber absolute left-[14px] top-[14px]">A soft hug in a bottle</span>
             </div>
@@ -155,7 +155,7 @@
 
             @if (! $period)
                 <div class="flex flex-col items-center gap-4 rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
-                    <img src="{{ asset('images/landing/yoka-lean.png') }}" alt="" class="yc-mascot yc-mascot-breathe h-[160px] w-auto">
+                    <x-mascot name="lean" sizes="139px" class="yc-mascot yc-mascot-breathe h-[160px] w-auto" />
                     <p class="font-display text-[25px] leading-7 text-charcoal">Pre-order lagi tutup dulu.</p>
                     <p class="text-base leading-[26px] text-muted">Info batch berikutnya nanti ada di sini.</p>
                 </div>
@@ -197,7 +197,7 @@
         {{-- ===== Cara pesan (desktop 8:54, mobile 9:299) ===== --}}
         <section id="cara-pesan" class="relative scroll-mt-4 bg-brand py-10 lg:py-24">
             <div class="group absolute right-[max(40px,calc(50%-680px))] top-[-120px] hidden h-[325px] w-[240px] lg:block" aria-hidden="true">
-                <img src="{{ asset('images/landing/yoka-chasen.png') }}" alt="" style="--yc-dur: 5.2s; --yc-delay: -2s" class="yc-mascot yc-mascot-breathe absolute left-px top-[3.79px] h-[321px] w-[239px] max-w-none object-cover">
+                <x-mascot name="chasen" sizes="239px" style="--yc-dur: 5.2s; --yc-delay: -2s" class="yc-mascot yc-mascot-breathe absolute left-px top-[3.79px] h-[321px] w-[239px] max-w-none object-cover" />
             </div>
 
             <div class="yc-container flex flex-col gap-[14px] lg:gap-10">
@@ -233,7 +233,7 @@
             </div>
 
             <div class="group relative h-[280px] w-full shrink-0 overflow-hidden rounded-card border border-charcoal bg-sage-soft lg:h-[460px] lg:w-[480px]" aria-hidden="true">
-                <img src="{{ asset('images/landing/yoka-thumbs.png') }}" alt="" style="--yc-delay: -1.4s" class="yc-mascot yc-mascot-sway absolute left-1/2 top-[43px] h-[217px] w-[177px] max-w-none -translate-x-1/2 object-cover lg:top-[77.79px] lg:h-[361px] lg:w-[295px]">
+                <x-mascot name="thumbs" sizes="(min-width: 1024px) 295px, 177px" style="--yc-delay: -1.4s" class="yc-mascot yc-mascot-sway absolute left-1/2 top-[43px] h-[217px] w-[177px] max-w-none -translate-x-1/2 object-cover lg:top-[77.79px] lg:h-[361px] lg:w-[295px]" />
                 <span class="yc-tag-amber absolute left-[14px] top-[14px] lg:left-[19px] lg:top-[19px]">Kocok dulu</span>
             </div>
         </section>
@@ -243,7 +243,7 @@
             <div class="flex shrink-0 flex-col gap-5 lg:w-[360px]">
                 <h2 class="font-display text-[36px] leading-9 tracking-[-0.6px] text-charcoal lg:text-[44px] lg:leading-[64px]">Yang sering ditanyain</h2>
                 <div class="group relative hidden h-[240px] w-[200px] lg:block" aria-hidden="true">
-                    <img src="{{ asset('images/landing/yoka-lean.png') }}" alt="" style="--yc-dur: 4.3s; --yc-delay: -3s" class="yc-mascot yc-mascot-breathe absolute left-0 top-[-0.21px] h-[240px] w-[207px] max-w-none object-cover">
+                    <x-mascot name="lean" sizes="207px" style="--yc-dur: 4.3s; --yc-delay: -3s" class="yc-mascot yc-mascot-breathe absolute left-0 top-[-0.21px] h-[240px] w-[207px] max-w-none object-cover" />
                 </div>
             </div>
 

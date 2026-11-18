@@ -15,7 +15,7 @@
 
         @if (empty($lines))
             <div class="flex flex-col items-center gap-4 rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
-                <img src="{{ asset('images/landing/yoka-lean.png') }}" alt="" class="yc-mascot yc-mascot-breathe h-[140px] w-auto">
+                <x-mascot name="lean" sizes="122px" class="yc-mascot yc-mascot-breathe h-[140px] w-auto" />
                 <p class="font-display text-[25px] leading-7 text-charcoal">Keranjangmu masih kosong.</p>
                 <a href="{{ route('menu.index') }}#menu" class="yc-btn-cta">Lihat menu</a>
             </div>
