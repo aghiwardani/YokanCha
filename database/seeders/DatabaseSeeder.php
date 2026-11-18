@@ -2,24 +2,19 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Starting data for a fresh database (`php artisan migrate:fresh --seed`):
+     * the admin account and YokanCha's master data (sizes, sweetness levels,
+     * ingredients, products with prices and recipes). Periods, stock and
+     * orders start empty. The demo menu (MenuDemoSeeder) is not included.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
         $this->call(AdminUserSeeder::class);
+        $this->call(MasterDataSeeder::class);
     }
 }

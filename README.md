@@ -46,6 +46,20 @@ Set these in `.env` (defaults in `config/yokancha.php` are placeholders):
 
 Run `php artisan config:clear` after changing `.env`.
 
+## Data awal (master data)
+
+`database/seeders/MasterDataSeeder.php` berisi master data YokanCha yang asli: ukuran,
+tingkat manis, bahan, dan kelima produk beserta harga, pilihan manis, dan resep per ukuran.
+
+- Database baru dari nol (akun admin + master data, periode/stok/pesanan kosong):
+  `php artisan migrate:fresh --seed`. Perintah ini **menghapus semua data** yang ada.
+- Hanya mengisi ulang master data di database yang sudah berjalan:
+  `php artisan db:seed --class=MasterDataSeeder`. Produk, harga, dan resep dengan nama yang
+  sama dikembalikan ke isi seeder; periode, stok, dan pesanan tidak disentuh.
+
+Kalau master data di admin berubah dan ingin dijadikan data awal yang baru, isi seeder ini
+perlu diperbarui.
+
 ## Demo menu
 
 `php artisan db:seed --class=MenuDemoSeeder` adds the five drinks from the Figma mockup
