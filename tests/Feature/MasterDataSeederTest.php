@@ -24,6 +24,8 @@ class MasterDataSeederTest extends TestCase
         $this->assertSame(['250 ml', '500 ml', '1 Liter'], Size::smallestFirst()->pluck('name')->all());
         $this->assertSame(['No Sugar', 'Less Sugar', 'Normal', 'Extra Sugar'], SweetnessLevel::leastSweetFirst()->pluck('name')->all());
         $this->assertSame(8, Ingredient::count());
+        $this->assertTrue(Ingredient::where('name', 'Oatside')->exists());
+        $this->assertFalse(Ingredient::where('name', 'Outside')->exists());
         $this->assertSame(['Maple Syrup', 'Simple Syrup'], Ingredient::where('is_sugar', true)->orderBy('name')->pluck('name')->all());
         $this->assertSame(5, Product::count());
 
