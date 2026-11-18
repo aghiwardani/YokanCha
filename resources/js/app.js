@@ -56,6 +56,38 @@ function updateCartCount(count) {
     });
 }
 
+// Quantity stepper on menu cards: − / + keep the number between min and max.
+const clampQty = (input) => {
+    const min = Number(input.min) || 1;
+    const max = Number(input.max) || 99;
+    const value = Math.round(Number(input.value)) || min;
+    input.value = String(Math.min(max, Math.max(min, value)));
+
+    const stepper = input.closest('[data-qty]');
+    stepper?.querySelector('[data-qty-step="-1"]')?.toggleAttribute('disabled', Number(input.value) <= min);
+    stepper?.querySelector('[data-qty-step="1"]')?.toggleAttribute('disabled', Number(input.value) >= max);
+};
+
+document.querySelectorAll('[data-qty] input').forEach(clampQty);
+
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-qty-step]');
+
+    if (!button) {
+        return;
+    }
+
+    const input = button.closest('[data-qty]').querySelector('input');
+    input.value = String(Number(input.value || 0) + Number(button.dataset.qtyStep));
+    clampQty(input);
+});
+
+document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLInputElement && event.target.closest('[data-qty]')) {
+        clampQty(event.target);
+    }
+});
+
 // "Tambah" adds to the cart in the background so the customer stays on the menu.
 document.addEventListener('submit', async (event) => {
     const form = event.target.closest('form[data-cart-add]');
@@ -81,6 +113,13 @@ document.addEventListener('submit', async (event) => {
 
         updateCartCount(data.count);
         showToast(data.message, 'ok');
+
+        // Back to 1 for the next add.
+        const qty = form.querySelector('[data-qty] input');
+        if (qty) {
+            qty.value = '1';
+            clampQty(qty);
+        }
     } catch (error) {
         const response = error.response;
         let message = 'Gagal masuk keranjang. Coba lagi.';

@@ -37,7 +37,8 @@ class CartController extends Controller
             throw $e;
         }
 
-        $message = "{$ppp->product->name} masuk keranjang.";
+        $qty = (int) $request->input('qty');
+        $message = ($qty > 1 ? "{$qty} botol " : '')."{$ppp->product->name} masuk keranjang.";
 
         if ($request->expectsJson()) {
             return response()->json([

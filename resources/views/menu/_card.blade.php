@@ -6,6 +6,7 @@
 @php
     $product = $item->product;
     $remaining = $availability[$item->id]['max'] ?? 0;
+    $maxPerVariant = (int) config('yokancha.max_per_variant');
     $sizeStock = $availability[$item->id]['sizes'] ?? [];
     $soldOut = $remaining <= 0;
     $sizes = $product->sizesSmallestFirst();
@@ -49,7 +50,6 @@
     <form method="POST" action="{{ route('cart.add') }}" data-cart-add class="flex flex-1 flex-col justify-between gap-3 p-[18px] lg:p-5">
         @csrf
         <input type="hidden" name="po_period_product_id" value="{{ $item->id }}">
-        <input type="hidden" name="qty" value="1">
 
         <div class="flex flex-col gap-3 lg:gap-[14px]">
             <h3 class="font-display text-[25px] leading-7 text-charcoal">{{ $product->name }}</h3>
@@ -113,13 +113,31 @@
             @endif
         </div>
 
-        <div class="flex items-center justify-between border-t border-line pt-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
             <p class="text-xl font-extrabold leading-5 tracking-[-0.2px] text-charcoal" data-price-display aria-live="polite">{{ $rupiah($price) }}</p>
 
             @if ($soldOut)
+                <input type="hidden" name="qty" value="1">
                 <button type="button" disabled class="yc-btn cursor-not-allowed border-charcoal/30 bg-charcoal/10 text-charcoal/50">Habis</button>
             @else
-                <button type="submit" class="yc-btn-cta">Tambah</button>
+                <div class="flex items-center gap-2">
+                    {{-- Jumlah botol: − / + steppers around a number field (typing works too). --}}
+                    <div class="yc-qty" data-qty>
+                        <button type="button" class="yc-qty-btn" data-qty-step="-1" aria-label="Kurangi jumlah {{ $product->name }}">&minus;</button>
+                        <input
+                            type="number"
+                            name="qty"
+                            value="1"
+                            min="1"
+                            max="{{ $maxPerVariant }}"
+                            inputmode="numeric"
+                            class="yc-qty-input"
+                            aria-label="Jumlah {{ $product->name }}"
+                        >
+                        <button type="button" class="yc-qty-btn" data-qty-step="1" aria-label="Tambah jumlah {{ $product->name }}">+</button>
+                    </div>
+                    <button type="submit" class="yc-btn-cta">Tambah</button>
+                </div>
             @endif
         </div>
     </form>

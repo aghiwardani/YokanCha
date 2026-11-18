@@ -66,6 +66,26 @@
         @apply yc-btn hover:bg-charcoal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charcoal;
     }
 
+    /* Quantity stepper next to "Tambah": − [ 2 ] +, same height as the button. */
+    .yc-qty {
+        @apply inline-flex h-[48px] items-center rounded-pill border border-charcoal bg-surface;
+    }
+
+    .yc-qty-btn {
+        @apply flex h-full w-10 items-center justify-center rounded-pill text-lg font-bold leading-none text-charcoal transition hover:bg-charcoal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charcoal disabled:cursor-not-allowed disabled:text-charcoal/30 disabled:hover:bg-transparent;
+    }
+
+    .yc-qty-input {
+        @apply w-9 appearance-none border-0 bg-transparent p-0 text-center text-[15px] font-bold text-charcoal focus:outline-none focus:ring-0;
+        -moz-appearance: textfield;
+    }
+
+    .yc-qty-input::-webkit-outer-spin-button,
+    .yc-qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
     /* Tag (Default / Amber). */
     .yc-tag {
         @apply yc-mono inline-flex items-center justify-center whitespace-nowrap rounded-tag border border-charcoal bg-surface px-[11px] py-[7px] text-charcoal;

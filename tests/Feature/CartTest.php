@@ -98,6 +98,17 @@ class CartTest extends TestCase
         $this->assertSame(1, app(\App\Services\CartService::class)->count());
     }
 
+    public function test_menu_card_has_quantity_field_capped_at_max_per_variant(): void
+    {
+        $this->makePoPeriodProduct();
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<input[^>]*type="number"[^>]*name="qty"[^>]*value="1"[^>]*min="1"[^>]*max="'.config('yokancha.max_per_variant').'"/s', $html);
+        $this->assertStringContainsString('data-qty-step="1"', $html);
+        $this->assertStringContainsString('data-qty-step="-1"', $html);
+    }
+
     public function test_adding_via_ajax_returns_cart_count_without_redirect(): void
     {
         $ppp = $this->makePoPeriodProduct();
@@ -106,7 +117,7 @@ class CartTest extends TestCase
             ->assertOk()
             ->assertJson([
                 'count' => 2,
-                'message' => 'Matcha Latte masuk keranjang.',
+                'message' => '2 botol Matcha Latte masuk keranjang.',
             ]);
 
         $this->postJson('/cart', $this->cartPayload($ppp))
