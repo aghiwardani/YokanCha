@@ -50,7 +50,7 @@ class MasterDataSeeder extends Seeder
             'Maple Syrup' => ['ml', true],
             'Matcha Longji' => ['g', false],
             'Matcha Tokyo' => ['g', false],
-            'Outside' => ['ml', false],
+            'Oatside' => ['ml', false],
             'Simple Syrup' => ['ml', true],
         ];
 
@@ -69,9 +69,9 @@ class MasterDataSeeder extends Seeder
                 'sweetness' => ['No Sugar', 'Less Sugar', 'Normal', 'Extra Sugar'],
                 // size => [ingredient => Normal amount]
                 'recipe' => [
-                    '250 ml' => ['Air' => 30, 'Fresh Milk' => 100, 'Maple Syrup' => 15, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Outside' => 70, 'cashew milk' => 30],
-                    '500 ml' => ['Air' => 60, 'Fresh Milk' => 200, 'Maple Syrup' => 30, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Outside' => 140, 'cashew milk' => 60],
-                    '1 Liter' => ['Air' => 120, 'Fresh Milk' => 400, 'Maple Syrup' => 60, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Outside' => 280, 'cashew milk' => 120],
+                    '250 ml' => ['Air' => 30, 'Fresh Milk' => 100, 'Maple Syrup' => 15, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Oatside' => 70, 'cashew milk' => 30],
+                    '500 ml' => ['Air' => 60, 'Fresh Milk' => 200, 'Maple Syrup' => 30, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Oatside' => 140, 'cashew milk' => 60],
+                    '1 Liter' => ['Air' => 120, 'Fresh Milk' => 400, 'Maple Syrup' => 60, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Oatside' => 280, 'cashew milk' => 120],
                 ],
             ],
             [
@@ -88,9 +88,9 @@ class MasterDataSeeder extends Seeder
                 'sweetness' => ['No Sugar', 'Less Sugar', 'Normal', 'Extra Sugar'],
                 // size => [ingredient => Normal amount]
                 'recipe' => [
-                    '250 ml' => ['Air' => 30, 'Fresh Milk' => 103.75, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Outside' => 72.5, 'Simple Syrup' => 15, 'cashew milk' => 31.25],
-                    '500 ml' => ['Air' => 60, 'Fresh Milk' => 207.5, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Outside' => 145, 'Simple Syrup' => 30, 'cashew milk' => 62.5],
-                    '1 Liter' => ['Air' => 120, 'Fresh Milk' => 415, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Outside' => 290, 'Simple Syrup' => 60, 'cashew milk' => 125],
+                    '250 ml' => ['Air' => 30, 'Fresh Milk' => 103.75, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Oatside' => 72.5, 'Simple Syrup' => 15, 'cashew milk' => 31.25],
+                    '500 ml' => ['Air' => 60, 'Fresh Milk' => 207.5, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Oatside' => 145, 'Simple Syrup' => 30, 'cashew milk' => 62.5],
+                    '1 Liter' => ['Air' => 120, 'Fresh Milk' => 415, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Oatside' => 290, 'Simple Syrup' => 60, 'cashew milk' => 125],
                 ],
             ],
             [
@@ -107,9 +107,9 @@ class MasterDataSeeder extends Seeder
                 'sweetness' => ['No Sugar', 'Less Sugar', 'Normal', 'Extra Sugar'],
                 // size => [ingredient => Normal amount]
                 'recipe' => [
-                    '250 ml' => ['Air' => 30, 'Maple Syrup' => 12, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Outside' => 105, 'cashew milk' => 100],
-                    '500 ml' => ['Air' => 60, 'Maple Syrup' => 24, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Outside' => 210, 'cashew milk' => 200],
-                    '1 Liter' => ['Air' => 120, 'Maple Syrup' => 48, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Outside' => 420, 'cashew milk' => 400],
+                    '250 ml' => ['Air' => 30, 'Maple Syrup' => 12, 'Matcha Longji' => 2.1, 'Matcha Tokyo' => 1.4, 'Oatside' => 105, 'cashew milk' => 100],
+                    '500 ml' => ['Air' => 60, 'Maple Syrup' => 24, 'Matcha Longji' => 4.2, 'Matcha Tokyo' => 2.8, 'Oatside' => 210, 'cashew milk' => 200],
+                    '1 Liter' => ['Air' => 120, 'Maple Syrup' => 48, 'Matcha Longji' => 8.4, 'Matcha Tokyo' => 5.6, 'Oatside' => 420, 'cashew milk' => 400],
                 ],
             ],
             [
