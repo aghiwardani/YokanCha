@@ -90,8 +90,10 @@ if ! command -v composer >/dev/null; then
 fi
 
 step "Nginx dan Certbot"
-apt-get install -y nginx certbot python3-certbot-nginx
-systemctl enable --now nginx
+# The stock "default" site listens on [::]:80, which fails on VPSes with IPv6
+# turned off; it's replaced by the YokanCha site below anyway.
+apt-get install -y nginx certbot python3-certbot-nginx || true
+rm -f /etc/nginx/sites-enabled/default
 
 step "MySQL 8, database ${DB_NAME} dan user ${DB_USER}"
 apt-get install -y mysql-server
@@ -127,10 +129,15 @@ step "Folder aplikasi ${APP_DIR}"
 install -d -m 2775 -o "$DEPLOY_USER" -g www-data "$APP_DIR"
 
 step "Nginx site untuk YokanCha"
+# Listen on IPv6 only when the VPS has it.
+LISTEN_V6=""
+if [[ -f /proc/net/if_inet6 ]]; then
+    LISTEN_V6="listen [::]:80;"
+fi
 cat > /etc/nginx/sites-available/yokancha <<NGINX
 server {
     listen 80;
-    listen [::]:80;
+    ${LISTEN_V6}
     server_name _;
 
     root ${APP_DIR}/public;
@@ -169,7 +176,10 @@ NGINX
 ln -sf /etc/nginx/sites-available/yokancha /etc/nginx/sites-enabled/yokancha
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
-systemctl reload nginx
+# Finish the nginx package setup if its first start failed, then (re)start.
+dpkg --configure -a
+systemctl enable nginx
+systemctl restart nginx
 
 echo
 echo "============================================================"
