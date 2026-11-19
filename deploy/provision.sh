@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# One-time setup of a fresh Ubuntu 24.04 VPS for YokanCha:
-# Nginx + PHP 8.4-FPM + MySQL 8 + Composer + Certbot, a firewall, fail2ban,
+# One-time setup of a fresh Ubuntu VPS (22.04, 24.04 or 26.04) for YokanCha:
+# Nginx + PHP 8.4+ FPM + MySQL 8 + Composer + Certbot, a firewall, fail2ban,
 # a swap file, a `deploy` user for GitHub Actions and the app directory.
 #
 # Run on the VPS as a sudo user:
@@ -14,8 +14,8 @@ APP_DIR=/var/www/yokancha
 DEPLOY_USER=deploy
 DB_NAME=yokancha
 DB_USER=yokancha
-PHP=8.4
 TIMEZONE=Asia/Jakarta
+# PHP version is picked below: the newest 8.4+ the system offers.
 
 if [[ $EUID -ne 0 ]]; then
     echo "Jalankan dengan sudo: sudo bash provision.sh" >&2
@@ -47,9 +47,32 @@ ufw allow 443/tcp
 ufw --force enable
 systemctl enable --now fail2ban
 
-step "PHP ${PHP} (repositori ondrej/php)"
-add-apt-repository -y ppa:ondrej/php
+step "PHP 8.4 atau lebih baru"
+# Newer Ubuntu (26.04 "resolute") ships PHP 8.4+ itself and the ondrej PPA
+# doesn't serve it, so the PPA is only used on older releases.
+CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME}")"
+if [[ "$CODENAME" != "jammy" && "$CODENAME" != "noble" ]]; then
+    add-apt-repository -y --remove ppa:ondrej/php >/dev/null 2>&1 || true
+    rm -f /etc/apt/sources.list.d/ondrej-ubuntu-php-*.list /etc/apt/sources.list.d/ondrej-ubuntu-php-*.sources
+fi
 apt-get update -y
+
+pick_php() {
+    for v in 8.5 8.4; do
+        if apt-cache show "php${v}-fpm" >/dev/null 2>&1; then echo "$v"; return; fi
+    done
+}
+PHP="$(pick_php)"
+if [[ -z "$PHP" && ( "$CODENAME" == "jammy" || "$CODENAME" == "noble" ) ]]; then
+    add-apt-repository -y ppa:ondrej/php
+    apt-get update -y
+    PHP="$(pick_php)"
+fi
+if [[ -z "$PHP" ]]; then
+    echo "PHP 8.4+ tidak tersedia untuk Ubuntu ${CODENAME}." >&2
+    exit 1
+fi
+echo "Memakai PHP ${PHP}"
 apt-get install -y \
     "php${PHP}-fpm" "php${PHP}-cli" "php${PHP}-mysql" "php${PHP}-mbstring" "php${PHP}-xml" \
     "php${PHP}-curl" "php${PHP}-zip" "php${PHP}-bcmath" "php${PHP}-intl" "php${PHP}-gd"
