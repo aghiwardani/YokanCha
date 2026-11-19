@@ -6,6 +6,7 @@
     // 1.250,5 style: thousands with dots, decimals only when needed.
     $thousands = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, ',', '.'), '0'), ',');
     $variantText = fn ($v) => ($v === '' || $v === '-') ? '' : $v;
+    $rp = fn ($n) => ($n < 0 ? '-' : '').'Rp'.number_format(abs(round($n)), 0, ',', '.');
 @endphp
 
 @section('admin-content')
@@ -56,7 +57,8 @@
                                         <th class="px-3 py-2 font-semibold">Manis</th>
                                         <th class="px-3 py-2 font-semibold text-right">Botol</th>
                                         <th class="px-3 py-2 font-semibold">Resep per botol</th>
-                                        <th class="px-5 py-2 font-semibold">Total bahan</th>
+                                        <th class="px-3 py-2 font-semibold">Total bahan</th>
+                                        <th class="px-5 py-2 font-semibold text-right print:hidden">HPP / untung per botol</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -72,10 +74,19 @@
                                                     <span class="text-muted">Resep belum diisi</span>
                                                 @endforelse
                                             </td>
-                                            <td class="px-5 py-3 text-charcoal">
+                                            <td class="px-3 py-3 text-charcoal">
                                                 @foreach ($variant['ingredients'] as $id => $amount)
                                                     <div>{{ $ingredients[$id]->name ?? 'Bahan dihapus' }}: <span class="font-semibold">{{ $thousands($amount) }} {{ $ingredients[$id]->unit ?? '' }}</span></div>
                                                 @endforeach
+                                            </td>
+                                            @php
+                                                $hpp = $variant['cost'] / $variant['bottles'];
+                                                $price = $variant['revenue'] / $variant['bottles'];
+                                            @endphp
+                                            <td class="px-5 py-3 text-right whitespace-nowrap print:hidden">
+                                                <div class="text-muted">HPP {{ $rp($hpp) }}@unless ($variant['costComplete'])<span title="Ada bahan yang harga belinya belum diisi">*</span>@endunless</div>
+                                                <div class="text-muted">Jual {{ $rp($price) }}</div>
+                                                <div class="font-bold {{ $price - $hpp >= 0 ? 'text-brand' : 'text-amber-text' }}">Untung {{ $rp($price - $hpp) }}</div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -119,7 +130,46 @@
                 </div>
             </section>
 
-            {{-- 3. Pickup list --}}
+            {{-- 3. Money: HPP and profit (not printed for the kitchen) --}}
+            <section class="space-y-3 print:hidden">
+                <h2 class="text-xl font-bold text-charcoal">Hitungan untung</h2>
+
+                @if ($profit['missingPrices'])
+                    <div class="p-4 rounded-brand border border-cta/30 bg-amber-soft text-sm text-amber-text">
+                        Harga beli belum diisi untuk: {{ implode(', ', $profit['missingPrices']) }}. HPP dan untung di bawah belum menghitung bahan itu.
+                        <a href="{{ route('admin.periods.stock', $period) }}" class="font-semibold underline">Isi di Stok bahan</a>
+                    </div>
+                @endif
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-surface rounded-brand border border-line p-5 space-y-2">
+                        <p class="text-sm font-bold text-charcoal">Dari botol yang terjual</p>
+                        <div class="flex justify-between text-sm"><span class="text-muted">Penjualan</span><span class="font-semibold">{{ $rp($profit['revenue']) }}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-muted">HPP (bahan terpakai)</span><span class="font-semibold">&minus; {{ $rp($profit['cogs']) }}</span></div>
+                        <div class="flex justify-between border-t border-line pt-2">
+                            <span class="font-bold text-charcoal">Untung kotor</span>
+                            <span class="text-lg font-bold {{ $profit['gross'] >= 0 ? 'text-brand' : 'text-amber-text' }}">{{ $rp($profit['gross']) }}</span>
+                        </div>
+                        <p class="text-xs text-muted">Margin {{ $profit['margin'] }}% dari penjualan.</p>
+                    </div>
+
+                    <div class="bg-surface rounded-brand border border-line p-5 space-y-2">
+                        <p class="text-sm font-bold text-charcoal">Uang masuk dan keluar batch ini</p>
+                        <div class="flex justify-between text-sm"><span class="text-muted">Penjualan</span><span class="font-semibold">{{ $rp($profit['revenue']) }}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-muted">Belanja bahan</span><span class="font-semibold">&minus; {{ $rp($profit['spent']) }}</span></div>
+                        <div class="flex justify-between border-t border-line pt-2">
+                            <span class="font-bold text-charcoal">Untung bersih</span>
+                            <span class="text-lg font-bold {{ $profit['cash'] >= 0 ? 'text-brand' : 'text-amber-text' }}">{{ $rp($profit['cash']) }}</span>
+                        </div>
+                        <p class="text-xs text-muted">
+                            Sisa bahan senilai {{ $rp($profit['leftover']) }} masih bisa dipakai di batch berikutnya.
+                            Uang yang sudah dibayar pembeli: {{ $rp($profit['paid']) }}.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {{-- 4. Pickup list --}}
             <section class="space-y-3">
                 <h2 class="text-xl font-bold text-charcoal">Daftar ambil</h2>
                 <div class="bg-surface rounded-brand border border-line divide-y divide-line">

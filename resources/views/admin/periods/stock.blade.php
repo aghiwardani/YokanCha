@@ -46,6 +46,10 @@
                     >Isi dari sisa periode lalu</a>
                 </div>
 
+                <p class="mb-4 text-sm text-muted">
+                    Isi harga beli total untuk stok yang kamu masukkan, misalnya 2.000 ml susu seharga Rp40.000. Harganya dipakai untuk menghitung HPP dan untung di halaman Produksi.
+                </p>
+
                 @if ($prefilled)
                     <p class="mb-4 text-sm text-charcoal opacity-75">Terisi dari sisa periode lalu. Belum tersimpan sampai kamu klik Simpan.</p>
                 @endif
@@ -60,21 +64,45 @@
                                 $value = $hasOld ? old('stock.'.$ingredient->id) : $values[$ingredient->id];
                                 $value = ($value === null || $value === '') ? '' : $fmt($value);
                             @endphp
-                            <div class="flex flex-wrap items-center gap-3 border-2 border-brand rounded-brand p-4">
-                                <label for="stock_{{ $ingredient->id }}" class="flex-1 min-w-[8rem] font-semibold text-charcoal">
+                            @php
+                                $cost = $hasOld ? old('cost.'.$ingredient->id) : ($costs[$ingredient->id] ?? null);
+                                $cost = ($cost === null || $cost === '') ? '' : number_format((int) str_replace('.', '', (string) $cost), 0, ',', '.');
+                                $unitCost = $row?->unitCost();
+                            @endphp
+                            <div class="border-2 border-brand rounded-brand p-4 space-y-3">
+                                <p class="font-semibold text-charcoal">
                                     {{ $ingredient->name }} <span class="font-normal opacity-75">({{ $ingredient->unit }})</span>
-                                </label>
-                                <input
-                                    type="text" inputmode="decimal" data-number
-                                    step="0.01"
-                                    min="0"
-                                    id="stock_{{ $ingredient->id }}"
-                                    name="stock[{{ $ingredient->id }}]"
-                                    value="{{ $value }}"
-                                    class="w-32 px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('stock.'.$ingredient->id) border-red-500 @enderror"
-                                />
-                                <span class="text-sm text-charcoal">Terpakai: {{ $fmt($row?->used ?? 0) }} {{ $ingredient->unit }}</span>
-                                <span class="text-sm text-charcoal">Sisa: {{ $fmt($row?->remaining() ?? 0) }} {{ $ingredient->unit }}</span>
+                                </p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="stock_{{ $ingredient->id }}" class="block text-xs font-semibold text-muted mb-1">Stok ({{ $ingredient->unit }})</label>
+                                        <input
+                                            type="text" inputmode="decimal" data-number
+                                            id="stock_{{ $ingredient->id }}"
+                                            name="stock[{{ $ingredient->id }}]"
+                                            value="{{ $value }}"
+                                            class="w-full px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('stock.'.$ingredient->id) border-red-500 @enderror"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label for="cost_{{ $ingredient->id }}" class="block text-xs font-semibold text-muted mb-1">Harga beli total (Rp)</label>
+                                        <input
+                                            type="text" inputmode="numeric" data-number="int"
+                                            id="cost_{{ $ingredient->id }}"
+                                            name="cost[{{ $ingredient->id }}]"
+                                            value="{{ $cost }}"
+                                            placeholder="Untuk seluruh stok ini"
+                                            class="w-full px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('cost.'.$ingredient->id) border-red-500 @enderror"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm text-charcoal">
+                                    <span>Terpakai: {{ $fmt($row?->used ?? 0) }} {{ $ingredient->unit }}</span>
+                                    <span>Sisa: {{ $fmt($row?->remaining() ?? 0) }} {{ $ingredient->unit }}</span>
+                                    @if ($unitCost !== null)
+                                        <span class="text-muted">Rp{{ rtrim(rtrim(number_format($unitCost, 2, ',', '.'), '0'), ',') }} per {{ $ingredient->unit }}</span>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>

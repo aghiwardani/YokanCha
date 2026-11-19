@@ -96,4 +96,44 @@ class ProductionTest extends TestCase
 
         $this->get(route('admin.periods.production', $period))->assertRedirect();
     }
+
+    public function test_sheet_works_out_hpp_and_profit(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Fresh Milk');
+        $matcha = $this->ingredient('Matcha', 'g');
+        // Rp20 per ml and Rp1.000 per g.
+        $this->stock($period, $milk, 2000, 1000)->update(['cost' => 40000]);
+        $this->stock($period, $matcha, 100, 20)->update(['cost' => 100000]);
+
+        // 5 bottles x (200 ml milk + 4 g matcha) = Rp4.000 + Rp4.000 = Rp8.000 per bottle.
+        $this->order($period, 'Nui', 'new', [[$product, '250 ml', '-', 5, [[$milk, 200], [$matcha, 4]]]]);
+
+        $this->get(route('admin.periods.production', $period))
+            ->assertOk()
+            ->assertSee('HPP Rp8.000')
+            ->assertSee('Untung Rp24.000')
+            ->assertSee('Rp160.000')   // penjualan 5 x 32.000
+            ->assertSee('Rp40.000')    // HPP 5 x 8.000
+            ->assertSee('Rp120.000')   // untung kotor
+            ->assertSee('Rp140.000')   // belanja bahan
+            ->assertSee('Rp20.000')    // untung bersih 160.000 - 140.000
+            ->assertSee('Margin 75%')
+            ->assertDontSee('Harga beli belum diisi');
+    }
+
+    public function test_sheet_lists_ingredients_without_a_price(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Oatside');
+        $this->stock($period, $milk, 2000, 200);
+        $this->order($period, 'Nui', 'new', [[$product, '250 ml', '-', 1, [[$milk, 200]]]]);
+
+        $this->get(route('admin.periods.production', $period))
+            ->assertSee('Harga beli belum diisi untuk: Oatside.');
+    }
 }

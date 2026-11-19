@@ -79,9 +79,11 @@ class PoPeriodController extends Controller
         $rows = $period->ingredientStocks()->get()->keyBy('ingredient_id');
 
         $values = [];
+        $costs = [];
         foreach ($ingredients as $ingredient) {
             $row = $rows->get($ingredient->id);
             $values[$ingredient->id] = $row ? $row->stock : null;
+            $costs[$ingredient->id] = $row?->cost;
         }
 
         $prefilled = $request->query('prefill') === 'previous';
@@ -92,7 +94,11 @@ class PoPeriodController extends Controller
             if ($previous) {
                 foreach ($previous->ingredientStocks()->get() as $prev) {
                     if (array_key_exists($prev->ingredient_id, $values)) {
-                        $values[$prev->ingredient_id] = max(0, $prev->remaining());
+                        $left = max(0, $prev->remaining());
+                        $values[$prev->ingredient_id] = $left;
+                        // Leftovers carry their share of what they cost last time.
+                        $unit = $prev->unitCost();
+                        $costs[$prev->ingredient_id] = $unit === null ? null : (int) round($left * $unit);
                     }
                 }
             }
@@ -103,6 +109,7 @@ class PoPeriodController extends Controller
             'ingredients' => $ingredients,
             'rows' => $rows,
             'values' => $values,
+            'costs' => $costs,
             'prefilled' => $prefilled,
             'products' => Product::orderBy('sort_order')->orderBy('name')->get(),
             'selectedProducts' => $period->poPeriodProducts()->pluck('product_id')->all(),
@@ -115,17 +122,23 @@ class PoPeriodController extends Controller
         if ($request->has('stock')) {
             $request->merge(['stock' => Number::normalizeAll($request->input('stock'))]);
         }
+        if ($request->has('cost')) {
+            $request->merge(['cost' => Number::normalizeAll($request->input('cost'))]);
+        }
 
         $request->validate([
             'stock' => ['nullable', 'array'],
             'stock.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'cost' => ['nullable', 'array'],
+            'cost.*' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
             'products' => ['nullable', 'array'],
             'products.*' => ['integer', 'exists:products,id'],
         ]);
 
         $input = $request->input('stock', []);
+        $costInput = $request->input('cost', []);
 
-        DB::transaction(function () use ($request, $period, $input) {
+        DB::transaction(function () use ($request, $period, $input, $costInput) {
             $existing = PoPeriodIngredient::where('po_period_id', $period->id)
                 ->orderBy('id')->lockForUpdate()->get()->keyBy('ingredient_id');
             $ingredients = Ingredient::whereIn('id', array_keys($input))->get()->keyBy('id');
@@ -156,14 +169,21 @@ class PoPeriodController extends Controller
                     continue;
                 }
 
+                // A form without the price field leaves the saved price alone.
+                $rawCost = $costInput[$ingredient->id] ?? null;
+                $cost = array_key_exists($ingredient->id, $costInput)
+                    ? (($rawCost === null || $rawCost === '') ? null : (int) $rawCost)
+                    : $row?->cost;
+
                 if ($row) {
-                    $row->update(['stock' => $raw]);
+                    $row->update(['stock' => $raw, 'cost' => $cost]);
                 } else {
                     PoPeriodIngredient::create([
                         'po_period_id' => $period->id,
                         'ingredient_id' => $ingredient->id,
                         'stock' => $raw,
                         'used' => 0,
+                        'cost' => $cost,
                     ]);
                 }
             }

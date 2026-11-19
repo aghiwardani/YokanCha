@@ -155,4 +155,49 @@ class PeriodStockTest extends TestCase
         $this->assertDatabaseHas('po_period_products', ['po_period_id' => $period->id, 'product_id' => $keep->id]);
         $this->assertDatabaseMissing('po_period_products', ['po_period_id' => $period->id, 'product_id' => $drop->id]);
     }
+
+    public function test_purchase_price_is_saved_with_the_stock(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'stock' => [$milk->id => '2.000'],
+            'cost' => [$milk->id => '40.000'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $row = PoPeriodIngredient::where('ingredient_id', $milk->id)->first();
+        $this->assertSame(40000, $row->cost);
+        $this->assertEquals(20.0, $row->unitCost());
+
+        $this->get("/admin/periods/{$period->id}/stock")
+            ->assertSee('value="40.000"', false)
+            ->assertSee('Rp20 per ml');
+    }
+
+    public function test_saving_without_price_field_keeps_the_saved_price(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+        $this->put("/admin/periods/{$period->id}/stock", ['stock' => [$milk->id => '2000'], 'cost' => [$milk->id => '40000']]);
+
+        $this->put("/admin/periods/{$period->id}/stock", ['stock' => [$milk->id => '3000']]);
+
+        $this->assertSame(40000, PoPeriodIngredient::where('ingredient_id', $milk->id)->value('cost'));
+    }
+
+    public function test_prefill_from_previous_period_carries_the_value_of_leftovers(): void
+    {
+        $previous = PoPeriod::factory()->create(['created_at' => now()->subWeek()]);
+        $milk = $this->ingredient('Susu');
+        PoPeriodIngredient::create([
+            'po_period_id' => $previous->id, 'ingredient_id' => $milk->id, 'stock' => 2000, 'used' => 1500, 'cost' => 40000,
+        ]);
+        $period = PoPeriod::factory()->create();
+
+        // 500 ml left at Rp20 per ml.
+        $this->get("/admin/periods/{$period->id}/stock?prefill=previous")
+            ->assertSee('value="500"', false)
+            ->assertSee('value="10.000"', false);
+    }
 }

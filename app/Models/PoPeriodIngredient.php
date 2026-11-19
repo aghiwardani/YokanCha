@@ -15,11 +15,13 @@ class PoPeriodIngredient extends Model
         'ingredient_id',
         'stock',
         'used',
+        'cost',
     ];
 
     protected $casts = [
         'stock' => 'decimal:2',
         'used' => 'decimal:2',
+        'cost' => 'integer',
     ];
 
     public function poPeriod(): BelongsTo
@@ -35,5 +37,17 @@ class PoPeriodIngredient extends Model
     public function remaining(): float
     {
         return (float) $this->stock - (float) $this->used;
+    }
+
+    /**
+     * Rupiah per unit (per ml, per g, ...), or null when no price was entered.
+     */
+    public function unitCost(): ?float
+    {
+        if ($this->cost === null || (float) $this->stock <= 0) {
+            return null;
+        }
+
+        return $this->cost / (float) $this->stock;
     }
 }
