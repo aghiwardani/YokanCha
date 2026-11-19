@@ -58,7 +58,7 @@
                                         <th class="px-3 py-2 font-semibold text-right">Botol</th>
                                         <th class="px-3 py-2 font-semibold">Resep per botol</th>
                                         <th class="px-3 py-2 font-semibold">Total bahan</th>
-                                        <th class="px-5 py-2 font-semibold text-right print:hidden">HPP / untung per botol</th>
+                                        <th class="px-5 py-2 font-semibold text-right print:hidden">HPP (COGS) / untung per botol</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -84,7 +84,7 @@
                                                 $price = $variant['revenue'] / $variant['bottles'];
                                             @endphp
                                             <td class="px-5 py-3 text-right whitespace-nowrap print:hidden">
-                                                <div class="text-muted">HPP {{ $rp($hpp) }}@unless ($variant['costComplete'])<span title="Ada bahan yang harga belinya belum diisi">*</span>@endunless</div>
+                                                <div class="text-muted">HPP (COGS) {{ $rp($hpp) }}@unless ($variant['costComplete'])<span title="Ada bahan yang harga belinya belum diisi">*</span>@endunless</div>
                                                 <div class="text-muted">Jual {{ $rp($price) }}</div>
                                                 <div class="font-bold {{ $price - $hpp >= 0 ? 'text-brand' : 'text-amber-text' }}">Untung {{ $rp($price - $hpp) }}</div>
                                             </td>
@@ -145,18 +145,28 @@
                     <div class="bg-surface rounded-brand border border-line p-5 space-y-2">
                         <p class="text-sm font-bold text-charcoal">Dari botol yang terjual</p>
                         <div class="flex justify-between text-sm"><span class="text-muted">Penjualan</span><span class="font-semibold">{{ $rp($profit['revenue']) }}</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-muted">HPP (bahan terpakai)</span><span class="font-semibold">&minus; {{ $rp($profit['cogs']) }}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-muted">HPP (COGS)</span><span class="font-semibold">&minus; {{ $rp($profit['cogs']) }}</span></div>
+                        <div class="pl-4 space-y-1 text-xs text-muted">
+                            <div class="flex justify-between"><span>Bahan resep</span><span>{{ $rp($profit['cogsIngredients']) }}</span></div>
+                            <div class="flex justify-between"><span>Biaya per botol (kemasan, upah)</span><span>{{ $rp($profit['cogsPerBottle']) }}</span></div>
+                            <div class="flex justify-between"><span>Biaya per batch</span><span>{{ $rp($profit['cogsBatch']) }}</span></div>
+                            <div class="flex justify-between font-semibold"><span>Rata-rata per botol</span><span>{{ $rp($profit['cogsPerUnit']) }}</span></div>
+                        </div>
                         <div class="flex justify-between border-t border-line pt-2">
                             <span class="font-bold text-charcoal">Untung kotor</span>
                             <span class="text-lg font-bold {{ $profit['gross'] >= 0 ? 'text-brand' : 'text-amber-text' }}">{{ $rp($profit['gross']) }}</span>
                         </div>
                         <p class="text-xs text-muted">Margin {{ $profit['margin'] }}% dari penjualan.</p>
+                        @if ($profit['extraCosts']->isEmpty())
+                            <p class="text-xs text-muted">Belum ada biaya kemasan, upah, atau biaya per batch. <a href="{{ route('admin.periods.stock', $period) }}" class="font-semibold underline">Tambah di Stok bahan</a></p>
+                        @endif
                     </div>
 
                     <div class="bg-surface rounded-brand border border-line p-5 space-y-2">
                         <p class="text-sm font-bold text-charcoal">Uang masuk dan keluar batch ini</p>
                         <div class="flex justify-between text-sm"><span class="text-muted">Penjualan</span><span class="font-semibold">{{ $rp($profit['revenue']) }}</span></div>
                         <div class="flex justify-between text-sm"><span class="text-muted">Belanja bahan</span><span class="font-semibold">&minus; {{ $rp($profit['spent']) }}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-muted">Biaya lain (kemasan, upah, per batch)</span><span class="font-semibold">&minus; {{ $rp($profit['extraSpent']) }}</span></div>
                         <div class="flex justify-between border-t border-line pt-2">
                             <span class="font-bold text-charcoal">Untung bersih</span>
                             <span class="text-lg font-bold {{ $profit['cash'] >= 0 ? 'text-brand' : 'text-amber-text' }}">{{ $rp($profit['cash']) }}</span>

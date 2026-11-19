@@ -200,4 +200,46 @@ class PeriodStockTest extends TestCase
             ->assertSee('value="500"', false)
             ->assertSee('value="10.000"', false);
     }
+
+    public function test_other_costs_are_saved_and_replace_the_old_list(): void
+    {
+        $period = PoPeriod::factory()->create();
+        $period->costs()->create(['name' => 'Lama', 'type' => 'per_batch', 'amount' => 1]);
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'extra_sent' => 1,
+            'extra' => [
+                ['name' => 'Botol 250 ml', 'type' => 'per_bottle', 'size' => '250 ml', 'amount' => '2.500'],
+                ['name' => 'Es batu', 'type' => 'per_batch', 'size' => '250 ml', 'amount' => '20.000'],
+                ['name' => '', 'type' => 'per_bottle', 'size' => '', 'amount' => ''],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            [['Botol 250 ml', 'per_bottle', '250 ml', 2500], ['Es batu', 'per_batch', null, 20000]],
+            $period->costs()->get()->map(fn ($c) => [$c->name, $c->type, $c->size, $c->amount])->all(),
+        );
+    }
+
+    public function test_half_filled_cost_row_is_rejected(): void
+    {
+        $period = PoPeriod::factory()->create();
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'extra_sent' => 1,
+            'extra' => [['name' => '', 'type' => 'per_bottle', 'amount' => '2000']],
+        ])->assertSessionHasErrors('extra.0.name');
+
+        $this->assertSame(0, $period->costs()->count());
+    }
+
+    public function test_prefill_copies_other_costs_from_previous_period(): void
+    {
+        $previous = PoPeriod::factory()->create(['created_at' => now()->subWeek()]);
+        $previous->costs()->create(['name' => 'Label stiker', 'type' => 'per_bottle', 'amount' => 500]);
+        $period = PoPeriod::factory()->create();
+
+        $this->get("/admin/periods/{$period->id}/stock?prefill=previous")
+            ->assertSee('value="Label stiker"', false);
+    }
 }

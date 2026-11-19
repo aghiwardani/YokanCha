@@ -33,6 +33,11 @@ class PoPeriod extends Model
         return $this->hasMany(PoPeriodIngredient::class);
     }
 
+    public function costs(): HasMany
+    {
+        return $this->hasMany(PoPeriodCost::class)->orderBy('id');
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);

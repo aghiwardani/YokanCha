@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
 use App\Models\Order;
 use App\Models\PoPeriod;
+use App\Models\PoPeriodCost;
 use App\Models\PoPeriodIngredient;
 use App\Models\Size;
 use App\Models\SweetnessLevel;
@@ -96,14 +97,30 @@ class ProductionController extends Controller
             return [$total, $complete];
         };
 
+        // Other costs: per bottle (packaging, labour) and per batch, shared
+        // evenly over every bottle of the batch.
+        $extraCosts = $period->costs()->get();
+        $bottleCount = array_sum(array_column($variants, 'bottles'));
+        $batchTotal = (int) $extraCosts->where('type', PoPeriodCost::PER_BATCH)->sum('amount');
+        $batchShare = $bottleCount > 0 ? $batchTotal / $bottleCount : 0;
+        $perBottleExtra = fn (string $size) => (int) $extraCosts
+            ->filter(fn (PoPeriodCost $c) => $c->appliesToSize($size))->sum('amount');
+
+        $ingredientCost = 0.0;
+        $packagingCost = 0;
         foreach ($variants as &$variant) {
-            [$variant['cost'], $variant['costComplete']] = $costOf($variant['ingredients']);
+            [$variant['ingredientCost'], $variant['costComplete']] = $costOf($variant['ingredients']);
+            $variant['extraCost'] = $perBottleExtra($variant['size']) * $variant['bottles'];
+            $variant['cost'] = $variant['ingredientCost'] + $variant['extraCost'] + $batchShare * $variant['bottles'];
+            $ingredientCost += $variant['ingredientCost'];
+            $packagingCost += $variant['extraCost'];
         }
         unset($variant);
 
         $products = collect($variants)->groupBy('product');
 
-        [$cogs, $cogsComplete] = $costOf($totals);
+        [, $cogsComplete] = $costOf($totals);
+        $cogs = $ingredientCost + $packagingCost + ($bottleCount > 0 ? $batchTotal : 0);
         $revenue = (int) $orders->sum(fn (Order $o) => $o->total());
         $paid = (int) $orders->where('payment_status', 'paid')->sum(fn (Order $o) => $o->total());
         $spent = (int) $stock->sum(fn (PoPeriodIngredient $row) => $row->cost ?? 0);
@@ -113,12 +130,18 @@ class ProductionController extends Controller
             'revenue' => $revenue,
             'paid' => $paid,
             'cogs' => (int) round($cogs),
+            'cogsIngredients' => (int) round($ingredientCost),
+            'cogsPerBottle' => $packagingCost,
+            'cogsBatch' => $bottleCount > 0 ? $batchTotal : 0,
+            'cogsPerUnit' => $bottleCount > 0 ? $cogs / $bottleCount : 0,
             'cogsComplete' => $cogsComplete,
             'gross' => $revenue - (int) round($cogs),
             'margin' => $revenue > 0 ? (int) round(($revenue - $cogs) / $revenue * 100) : 0,
             'spent' => $spent,
             'leftover' => (int) round($leftoverValue),
-            'cash' => $revenue - $spent,
+            'extraSpent' => $packagingCost + $batchTotal,
+            'cash' => $revenue - $spent - $packagingCost - $batchTotal,
+            'extraCosts' => $extraCosts,
             'missingPrices' => Ingredient::whereIn('id', $stock->filter(fn ($row) => $row->cost === null)->keys())
                 ->orderBy('name')->pluck('name')->all(),
         ];

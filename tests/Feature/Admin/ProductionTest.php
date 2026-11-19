@@ -113,7 +113,7 @@ class ProductionTest extends TestCase
 
         $this->get(route('admin.periods.production', $period))
             ->assertOk()
-            ->assertSee('HPP Rp8.000')
+            ->assertSee('HPP (COGS) Rp8.000')
             ->assertSee('Untung Rp24.000')
             ->assertSee('Rp160.000')   // penjualan 5 x 32.000
             ->assertSee('Rp40.000')    // HPP 5 x 8.000
@@ -135,5 +135,33 @@ class ProductionTest extends TestCase
 
         $this->get(route('admin.periods.production', $period))
             ->assertSee('Harga beli belum diisi untuk: Oatside.');
+    }
+
+    public function test_cogs_includes_packaging_and_batch_costs(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml', '1 liter']]);
+        $milk = $this->ingredient('Fresh Milk');
+        $matcha = $this->ingredient('Matcha', 'g');
+        $this->stock($period, $milk, 2000, 1000)->update(['cost' => 40000]);
+        $this->stock($period, $matcha, 100, 20)->update(['cost' => 100000]);
+
+        $period->costs()->create(['name' => 'Botol 250 ml', 'type' => 'per_bottle', 'size' => '250 ml', 'amount' => 2000]);
+        $period->costs()->create(['name' => 'Botol 1 liter', 'type' => 'per_bottle', 'size' => '1 liter', 'amount' => 6000]);
+        $period->costs()->create(['name' => 'Label', 'type' => 'per_bottle', 'size' => null, 'amount' => 500]);
+        $period->costs()->create(['name' => 'Es batu', 'type' => 'per_batch', 'size' => null, 'amount' => 10000]);
+
+        $this->order($period, 'Nui', 'new', [[$product, '250 ml', '-', 5, [[$milk, 200], [$matcha, 4]]]]);
+
+        // Per bottle: bahan 8.000 + botol 2.000 + label 500 + es 10.000/5 = 12.500.
+        $this->get(route('admin.periods.production', $period))
+            ->assertOk()
+            ->assertSee('HPP (COGS) Rp12.500')
+            ->assertSee('Untung Rp19.500')
+            ->assertSee('Rp62.500')    // COGS total
+            ->assertSee('Rp97.500')    // untung kotor
+            ->assertSee('Rp22.500')    // biaya lain: 5 x 2.500 + 10.000
+            ->assertSee('-Rp2.500');   // 160.000 - 140.000 - 22.500
     }
 }

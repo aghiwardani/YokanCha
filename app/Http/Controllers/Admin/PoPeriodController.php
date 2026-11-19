@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
 use App\Models\PoPeriod;
+use App\Models\PoPeriodCost;
 use App\Models\PoPeriodIngredient;
 use App\Models\PoPeriodProduct;
 use App\Models\Product;
+use App\Models\Size;
 use App\Support\Number;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,12 +88,20 @@ class PoPeriodController extends Controller
             $costs[$ingredient->id] = $row?->cost;
         }
 
+        $costLines = $period->costs()->get()
+            ->map(fn (PoPeriodCost $c) => $c->only(['name', 'type', 'size', 'amount']))->all();
+
         $prefilled = $request->query('prefill') === 'previous';
         if ($prefilled) {
             $previous = PoPeriod::whereKeyNot($period->getKey())
                 ->orderByDesc('created_at')->orderByDesc('id')->first();
 
             if ($previous) {
+                if ($costLines === []) {
+                    $costLines = $previous->costs()->get()
+                        ->map(fn (PoPeriodCost $c) => $c->only(['name', 'type', 'size', 'amount']))->all();
+                }
+
                 foreach ($previous->ingredientStocks()->get() as $prev) {
                     if (array_key_exists($prev->ingredient_id, $values)) {
                         $left = max(0, $prev->remaining());
@@ -110,6 +120,8 @@ class PoPeriodController extends Controller
             'rows' => $rows,
             'values' => $values,
             'costs' => $costs,
+            'costLines' => $costLines,
+            'sizes' => Size::smallestFirst()->pluck('name')->all(),
             'prefilled' => $prefilled,
             'products' => Product::orderBy('sort_order')->orderBy('name')->get(),
             'selectedProducts' => $period->poPeriodProducts()->pluck('product_id')->all(),
@@ -122,6 +134,11 @@ class PoPeriodController extends Controller
         if ($request->has('stock')) {
             $request->merge(['stock' => Number::normalizeAll($request->input('stock'))]);
         }
+        if ($request->has('extra')) {
+            $request->merge(['extra' => collect($request->input('extra'))
+                ->map(fn ($line) => is_array($line) ? ['amount' => Number::normalize($line['amount'] ?? null)] + $line : $line)
+                ->all()]);
+        }
         if ($request->has('cost')) {
             $request->merge(['cost' => Number::normalizeAll($request->input('cost'))]);
         }
@@ -131,14 +148,57 @@ class PoPeriodController extends Controller
             'stock.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'cost' => ['nullable', 'array'],
             'cost.*' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'extra' => ['nullable', 'array'],
+            'extra.*.name' => ['nullable', 'string', 'max:100'],
+            'extra.*.type' => ['nullable', 'in:'.PoPeriodCost::PER_BOTTLE.','.PoPeriodCost::PER_BATCH],
+            'extra.*.size' => ['nullable', 'string', 'max:100'],
+            'extra.*.amount' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
             'products' => ['nullable', 'array'],
             'products.*' => ['integer', 'exists:products,id'],
         ]);
 
+        // Other costs: a fully blank row is skipped, a half-filled one is an error.
+        $extra = [];
+        $extraErrors = [];
+        foreach ((array) $request->input('extra', []) as $i => $line) {
+            $name = trim((string) ($line['name'] ?? ''));
+            $amount = $line['amount'] ?? null;
+            if ($name === '' && ($amount === null || $amount === '')) {
+                continue;
+            }
+            if ($name === '') {
+                $extraErrors["extra.{$i}.name"] = 'Isi nama biaya untuk nominal yang kamu masukkan.';
+                continue;
+            }
+            if ($amount === null || $amount === '') {
+                $extraErrors["extra.{$i}.amount"] = "Isi nominal biaya {$name}.";
+                continue;
+            }
+            $type = ($line['type'] ?? '') === PoPeriodCost::PER_BATCH ? PoPeriodCost::PER_BATCH : PoPeriodCost::PER_BOTTLE;
+            $size = trim((string) ($line['size'] ?? ''));
+            $extra[] = [
+                'name' => $name,
+                'type' => $type,
+                'size' => $type === PoPeriodCost::PER_BOTTLE && $size !== '' ? $size : null,
+                'amount' => (int) $amount,
+            ];
+        }
+        if ($extraErrors) {
+            throw ValidationException::withMessages($extraErrors);
+        }
+
         $input = $request->input('stock', []);
         $costInput = $request->input('cost', []);
 
-        DB::transaction(function () use ($request, $period, $input, $costInput) {
+        DB::transaction(function () use ($request, $period, $input, $costInput, $extra) {
+            // The form always sends the whole list, so it replaces what was saved.
+            if ($request->boolean('extra_sent')) {
+                $period->costs()->delete();
+                foreach ($extra as $line) {
+                    $period->costs()->create($line);
+                }
+            }
+
             $existing = PoPeriodIngredient::where('po_period_id', $period->id)
                 ->orderBy('id')->lockForUpdate()->get()->keyBy('ingredient_id');
             $ingredients = Ingredient::whereIn('id', array_keys($input))->get()->keyBy('id');
