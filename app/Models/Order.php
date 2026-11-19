@@ -34,4 +34,9 @@ class Order extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    public function total(): int
+    {
+        return (int) $this->items->sum(fn (OrderItem $item) => $item->unit_price * $item->qty);
+    }
 }

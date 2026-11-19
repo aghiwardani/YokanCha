@@ -14,6 +14,8 @@ use Illuminate\View\View;
 
 class OrderController extends Controller
 {
+    private const STATUSES = ['new', 'diproses', 'siap_diambil', 'selesai', 'cancelled'];
+
     public function __construct(private StockService $stock)
     {
     }
@@ -22,18 +24,56 @@ class OrderController extends Controller
     {
         $periods = PoPeriod::orderByDesc('created_at')->get();
 
-        $query = Order::with('poPeriod', 'items')->orderByDesc('created_at');
+        $query = Order::with('poPeriod', 'items.product')->orderByDesc('created_at')->orderByDesc('id');
 
         if ($request->filled('po_period_id')) {
             $query->where('po_period_id', $request->input('po_period_id'));
         }
 
-        $orders = $query->get();
+        $search = trim((string) $request->input('q', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_whatsapp', 'like', "%{$search}%")
+                    ->orWhere('order_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Small shop: the period's orders fit in memory, so the summary and
+        // the status counts are worked out from one query.
+        $all = $query->get();
+        $live = $all->where('order_status', '!=', 'cancelled');
+        $totalOf = fn ($orders) => $orders->sum(fn (Order $o) => $o->total());
+
+        $summary = [
+            'orders' => $live->count(),
+            'bottles' => $live->sum(fn (Order $o) => $o->items->sum('qty')),
+            'revenue' => $totalOf($live),
+            'paid' => $totalOf($live->where('payment_status', 'paid')),
+            'unpaid' => $totalOf($live->where('payment_status', '!=', 'paid')),
+            'unpaidCount' => $live->where('payment_status', '!=', 'paid')->count(),
+        ];
+
+        $statusCounts = $all->countBy('order_status');
+
+        $payment = $request->input('payment');
+        $status = $request->input('status');
+
+        $orders = $all
+            ->when($payment === 'paid', fn ($c) => $c->where('payment_status', 'paid'))
+            ->when($payment === 'unpaid', fn ($c) => $c->where('payment_status', '!=', 'paid'))
+            ->when(in_array($status, self::STATUSES, true), fn ($c) => $c->where('order_status', $status))
+            ->values();
 
         return view('admin.orders.index', [
             'orders' => $orders,
             'periods' => $periods,
             'selectedPeriodId' => $request->input('po_period_id'),
+            'summary' => $summary,
+            'statusCounts' => $statusCounts,
+            'payment' => $payment,
+            'status' => $status,
+            'search' => $search,
         ]);
     }
 

@@ -233,4 +233,62 @@ class OrderManagementTest extends TestCase
             'order_status' => 'cancelled',
         ]);
     }
+
+    private function listOrder(PoPeriod $period, Product $product, string $name, string $payment, string $status, int $qty, int $price): Order
+    {
+        $order = Order::create([
+            'po_period_id' => $period->id,
+            'customer_name' => $name,
+            'customer_whatsapp' => '081234567890',
+            'payment_status' => $payment,
+            'order_status' => $status,
+            'order_number' => 'YC-'.uniqid(),
+        ]);
+        OrderItem::create([
+            'order_id' => $order->id, 'product_id' => $product->id,
+            'size' => '250 ml', 'sweetness' => 'Less Sugar', 'qty' => $qty, 'unit_price' => $price,
+        ]);
+
+        return $order;
+    }
+
+    public function test_order_list_shows_summary_items_and_whatsapp_link(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::factory()->create();
+        $product = Product::factory()->create(['name' => 'Maple Signature']);
+
+        $this->listOrder($period, $product, 'Nui', 'paid', 'new', 2, 32000);
+        $this->listOrder($period, $product, 'Santi', 'unpaid', 'new', 1, 32000);
+        $this->listOrder($period, $product, 'Batal', 'unpaid', 'cancelled', 5, 32000);
+
+        $this->get('/admin/orders')
+            ->assertOk()
+            ->assertSeeInOrder(['2×', 'Maple Signature'])
+            ->assertSee('(250 ml, Less Sugar)', false)
+            ->assertSee('Rp96.000')   // total penjualan, tanpa yang dibatalkan
+            ->assertSee('Rp64.000')   // sudah dibayar
+            ->assertSee('Rp32.000')   // belum dibayar
+            ->assertSee('3 botol')
+            ->assertSee('https://wa.me/6281234567890', false);
+    }
+
+    public function test_order_list_filters_by_payment_status_and_search(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::factory()->create();
+        $product = Product::factory()->create();
+
+        $this->listOrder($period, $product, 'Nui Lunas', 'paid', 'new', 1, 32000);
+        $this->listOrder($period, $product, 'Santi Nunggak', 'unpaid', 'diproses', 1, 32000);
+
+        $this->get('/admin/orders?payment=unpaid')
+            ->assertSee('Santi Nunggak')->assertDontSee('Nui Lunas');
+
+        $this->get('/admin/orders?status=new')
+            ->assertSee('Nui Lunas')->assertDontSee('Santi Nunggak');
+
+        $this->get('/admin/orders?q=santi')
+            ->assertSee('Santi Nunggak')->assertDontSee('Nui Lunas');
+    }
 }
