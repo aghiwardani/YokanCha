@@ -3,10 +3,10 @@
 # the VPS over SSH, then run deploy/after-deploy.sh there.
 #
 # Repository secrets (Settings > Secrets and variables > Actions):
-#   SSH_HOST         VPS address, e.g. 103.55.38.39
-#   SSH_USER         deploy
+#   SSH_HOST         VPS address, e.g. 103.55.38.39   (secret or variable)
+#   SSH_USER         deploy                            (secret or variable)
 #   SSH_PRIVATE_KEY  private half of the deploy key (no passphrase)
-#   SSH_KNOWN_HOSTS  output of: ssh-keyscan -t ed25519 <SSH_HOST>
+#   SSH_KNOWN_HOSTS  output of: ssh-keyscan -t ed25519 <SSH_HOST>   (secret or variable)
 name: CI/CD
 
 on:
@@ -64,7 +64,26 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+    env:
+      # Host, user and known_hosts aren't secret, so they may be set either as
+      # Actions secrets or as Actions variables. The private key must be a secret.
+      SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS || vars.SSH_KNOWN_HOSTS }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
     steps:
+      - name: Check deploy settings
+        run: |
+          missing=()
+          [[ -n "$SSH_HOST" ]] || missing+=(SSH_HOST)
+          [[ -n "$SSH_USER" ]] || missing+=(SSH_USER)
+          [[ -n "$SSH_KNOWN_HOSTS" ]] || missing+=(SSH_KNOWN_HOSTS)
+          [[ -n "$SSH_PRIVATE_KEY" ]] || missing+=(SSH_PRIVATE_KEY)
+          if (( ${#missing[@]} )); then
+            echo "::error::Belum diisi di Settings > Secrets and variables > Actions: ${missing[*]}"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: shivammathur/setup-php@v2
@@ -87,9 +106,9 @@ jobs:
       - name: SSH key
         run: |
           install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
       - name: Upload release
         # .env, storage/ and compiled caches live only on the server and are
@@ -101,9 +120,8 @@ jobs:
             --exclude='/tests/' --exclude='/.env' --exclude='/.env.*' \
             --exclude='/storage/' --exclude='/bootstrap/cache/*.php' \
             --exclude='/public/hot' --exclude='/.superpowers/' \
-            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_DIR }}/"
+            ./ "${SSH_USER}@${SSH_HOST}:${APP_DIR}/"
 
       - name: Migrate and warm caches
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "bash ${{ env.APP_DIR }}/deploy/after-deploy.sh"
+          ssh -i ~/.ssh/deploy_key "${SSH_USER}@${SSH_HOST}" "bash ${APP_DIR}/deploy/after-deploy.sh"
