@@ -63,7 +63,7 @@
                                     </p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <span class="inline-block px-3 py-1 text-xs font-semibold rounded-brand bg-oat text-charcoal">
+                                    <span class="inline-block px-3 py-1 text-xs font-semibold rounded-brand {{ $order->payment_status === 'paid' ? 'bg-sage-soft text-brand' : 'bg-amber-soft text-amber-text' }}">
                                         {{ $order->payment_status === 'paid' ? 'Sudah Bayar' : 'Belum Bayar' }}
                                     </span>
                                     <span class="inline-block px-3 py-1 text-xs font-semibold rounded-brand bg-charcoal text-surface">
