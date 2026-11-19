@@ -3,6 +3,7 @@
     $ingredientAddOld = fn (string $key) => old('_form') === 'ingredient-new' ? old($key) : null;
     $field = 'w-full rounded-chip border border-line bg-surface px-3 py-2 text-sm text-charcoal focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30';
 @endphp
+
 <section id="bahan" role="tabpanel" aria-labelledby="tab-bahan" class="scroll-mt-8">
     <p class="mb-4 max-w-xl text-sm leading-6 text-muted">
         Bahan baku yang stoknya kamu isi di tiap periode. Resep produk memakai bahan dari daftar ini. Bahan pemanis (gula cair, maple syrup, simple syrup) ditandai gula, boleh lebih dari satu: takarannya di resep ikut persen tingkat manis yang dipilih pelanggan.
