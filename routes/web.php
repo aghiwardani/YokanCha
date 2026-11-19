@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductionController;
 use App\Http\Controllers\Admin\SizeController;
 use App\Http\Controllers\Admin\SweetnessLevelController;
 use App\Http\Controllers\Auth\AdminLoginController;
@@ -50,6 +51,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/periods/{period}/close', [PoPeriodController::class, 'close'])->name('periods.close');
     Route::get('/periods/{period}/stock', [PoPeriodController::class, 'stock'])->name('periods.stock');
     Route::put('/periods/{period}/stock', [PoPeriodController::class, 'updateStock'])->name('periods.stock.update');
+    Route::get('/periods/{period}/production', [ProductionController::class, 'show'])->name('periods.production');
 
     // Master data: products (Produk), ingredients (Bahan) and sizes (Ukuran) on one page.
     Route::get('/products', fn () => redirect()->to(route('admin.master').'#produk'))->name('products');

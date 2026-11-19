@@ -70,6 +70,17 @@
             </form>
         </div>
 
+        @if ($selectedPeriodId && $periods->firstWhere('id', (int) $selectedPeriodId))
+            <a href="{{ route('admin.periods.production', (int) $selectedPeriodId) }}"
+               class="flex items-center justify-between gap-4 p-4 rounded-brand bg-brand text-surface hover:opacity-95">
+                <span>
+                    <span class="block font-bold">Lembar produksi</span>
+                    <span class="block text-sm opacity-80">Jumlah botol per varian, resep, total bahan, dan daftar ambil untuk batch ini.</span>
+                </span>
+                <span class="shrink-0 px-4 py-2 rounded-full bg-surface text-sm font-semibold text-brand">Buka</span>
+            </a>
+        @endif
+
         @if (session('status'))
             <div class="p-4 bg-sage-soft border border-brand/30 rounded-brand text-charcoal text-sm">
                 {{ session('status') }}

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <nav class="border-b border-brand/10 bg-white">
+    <nav class="border-b border-brand/10 bg-white print:hidden">
         <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div class="flex flex-wrap items-center gap-6">
                 <span class="text-lg font-bold text-charcoal">YokanCha Admin</span>

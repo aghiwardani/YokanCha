@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
 use App\Services\CartService;
+use App\Services\MenuAvailability;
 use App\Services\StockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +23,7 @@ class CartController extends Controller
      * Customers stay on the menu while adding bottles: the menu posts via fetch
      * and gets JSON back; without JavaScript they are sent back to #menu.
      */
-    public function add(Request $request): RedirectResponse|JsonResponse
+    public function add(Request $request, MenuAvailability $menuAvailability): RedirectResponse|JsonResponse
     {
         $fromMenu = url()->previous() === route('menu.index');
 
@@ -41,9 +42,17 @@ class CartController extends Controller
         $message = ($qty > 1 ? "{$qty} botol " : '')."{$ppp->product->name} masuk keranjang.";
 
         if ($request->expectsJson()) {
+            // Fresh stock for every card in the batch: ingredients are shared,
+            // so adding one menu can run another one out too.
+            $items = PoPeriodProduct::where('po_period_id', $ppp->po_period_id)
+                ->whereHas('product', fn ($query) => $query->where('is_active', true))
+                ->with('product')
+                ->get();
+
             return response()->json([
                 'message' => $message,
                 'count' => $this->cart->count(),
+                'availability' => $menuAvailability->forItems($items),
             ]);
         }
 

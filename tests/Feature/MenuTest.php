@@ -137,7 +137,44 @@ class MenuTest extends TestCase
         $this->recipe($product, '250 ml', $milk, 200);
         PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
 
-        $this->get('/')->assertSee('Habis')->assertSee('Sisa 0 botol');
+        $this->get('/')
+            ->assertSee('Bahan untuk menu ini sudah habis di batch ini.')
+            ->assertSee('>Stok habis</button>', false)
+            ->assertSee('Sisa 0 botol');
+    }
+
+    public function test_bottles_in_own_cart_are_taken_off_what_can_still_be_added(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 600);
+        $this->recipe($product, '250 ml', $milk, 200);
+        $ppp = PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
+
+        $this->post('/cart', ['po_period_product_id' => $ppp->id, 'qty' => 2, 'size' => '250 ml', 'sweetness' => '-']);
+        $this->get('/')->assertSee('>Tambah</button>', false)->assertSee('max="1"', false);
+
+        $response = $this->postJson('/cart', ['po_period_product_id' => $ppp->id, 'qty' => 1, 'size' => '250 ml', 'sweetness' => '-']);
+        $response->assertOk()->assertJsonPath("availability.{$ppp->id}.cells.250 ml.-", 0);
+
+        $this->get('/')->assertSee('>Stok habis</button>', false);
+    }
+
+    public function test_cart_does_not_reserve_stock_for_other_visitors(): void
+    {
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'open']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($period, $milk, 600);
+        $this->recipe($product, '250 ml', $milk, 200);
+        $ppp = PoPeriodProduct::create(['po_period_id' => $period->id, 'product_id' => $product->id]);
+
+        $this->post('/cart', ['po_period_product_id' => $ppp->id, 'qty' => 3, 'size' => '250 ml', 'sweetness' => '-']);
+
+        // Another visitor (fresh session) still sees all 3 bottles.
+        $this->flushSession();
+        $this->get('/')->assertSee('Sisa 3 botol')->assertSee('>Tambah</button>', false);
     }
 
     public function test_size_without_enough_stock_is_disabled(): void

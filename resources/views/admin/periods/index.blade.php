@@ -115,6 +115,12 @@
                                 >
                                     Stok bahan
                                 </a>
+                                <a
+                                    href="{{ route('admin.periods.production', $period) }}"
+                                    class="px-4 py-2 border-2 border-brand text-charcoal font-semibold rounded-brand hover:bg-oat transition duration-200"
+                                >
+                                    Produksi
+                                </a>
                                 @if ($period->status !== 'open')
                                     <form action="{{ route('admin.periods.open', $period) }}" method="POST">
                                         @csrf

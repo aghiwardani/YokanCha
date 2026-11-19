@@ -25,7 +25,8 @@ class SmokeTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Matcha Latte Klasik');
-        // A sold-out card renders a "Habis" tag span and a "Habis" button.
-        $response->assertDontSee('>Habis</', false);
+        // A sold-out card says so and its add button reads "Stok habis".
+        $response->assertDontSee('data-card-note', false);
+        $response->assertDontSee('>Stok habis</button>', false);
     }
 }

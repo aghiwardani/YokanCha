@@ -70,6 +70,101 @@ const clampQty = (input) => {
 
 document.querySelectorAll('[data-qty] input').forEach(clampQty);
 
+// Menu cards: stock per size + sweetness lives in data-cells (bottles this
+// visitor can still add). Grey out what is gone and cap the quantity.
+const DISABLED_BUTTON = 'yc-btn cursor-not-allowed border-charcoal/30 bg-charcoal/10 text-charcoal/50';
+
+function syncCard(card) {
+    let cells;
+    try {
+        cells = JSON.parse(card.dataset.cells || '{}');
+    } catch {
+        return;
+    }
+    const limit = Number(card.dataset.limit) || 0;
+    const sizeInputs = [...card.querySelectorAll('input[name="size"][type="radio"]')];
+    const sweetInputs = [...card.querySelectorAll('input[name="sweetness"][type="radio"]')];
+    const cell = (size, sweet) => Number(cells?.[size]?.[sweet] ?? 0);
+    const sweetNames = sweetInputs.length ? sweetInputs.map((i) => i.value) : ['-'];
+    const markChip = (input, available) => {
+        input.disabled = !available;
+        const sub = input.parentElement.querySelector('[data-chip-sub]');
+        if (sub) {
+            if (sub.dataset.label) {
+                sub.textContent = available ? sub.dataset.label : 'Habis';
+            } else {
+                sub.classList.toggle('hidden', available);
+            }
+        }
+    };
+
+    sizeInputs.forEach((input) => markChip(input, sweetNames.some((sweet) => cell(input.value, sweet) > 0)));
+
+    let size = sizeInputs.find((i) => i.checked && !i.disabled) ?? sizeInputs.find((i) => !i.disabled);
+    if (size && !size.checked) {
+        size.checked = true;
+        size.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const sizeName = size ? size.value : (sizeInputs.length ? null : '-');
+
+    sweetInputs.forEach((input) => markChip(input, sizeName !== null && cell(sizeName, input.value) > 0));
+    let sweet = sweetInputs.find((i) => i.checked && !i.disabled) ?? sweetInputs.find((i) => !i.disabled);
+    if (sweet) {
+        sweet.checked = true;
+    }
+    const sweetName = sweet ? sweet.value : (sweetInputs.length ? null : '-');
+
+    const left = sizeName !== null && sweetName !== null ? Math.min(cell(sizeName, sweetName), limit) : 0;
+    const anyStock = Object.values(cells).some((row) => Object.values(row).some((n) => Number(n) > 0));
+
+    const qty = card.querySelector('[data-qty]');
+    const qtyInput = qty?.querySelector('input');
+    const button = card.querySelector('[data-add-button]');
+
+    qty?.classList.toggle('hidden', left <= 0);
+    if (qtyInput) {
+        qtyInput.max = String(Math.max(1, left));
+        clampQty(qtyInput);
+    }
+    if (button) {
+        button.disabled = left <= 0;
+        button.className = left > 0 ? 'yc-btn-cta' : DISABLED_BUTTON;
+        button.textContent = left > 0 ? 'Tambah' : (anyStock && limit <= 0 ? 'Batas pesanan' : 'Stok habis');
+    }
+
+    // Whole card sold out: swap the tag and grey the photo.
+    card.querySelector('[data-card-tag]')?.classList.toggle('hidden', !anyStock);
+    card.querySelector('[data-card-soldout]')?.classList.toggle('hidden', anyStock);
+    card.querySelector('[data-card-photo]')?.classList.toggle('grayscale-[60%]', !anyStock);
+}
+
+document.addEventListener('change', (event) => {
+    const input = event.target;
+    // Only real clicks; syncCard itself fires a change when it moves the size.
+    if (event.isTrusted && input instanceof HTMLInputElement && (input.name === 'size' || input.name === 'sweetness')) {
+        const card = input.closest('[data-product-card]');
+        if (card) {
+            syncCard(card);
+        }
+    }
+});
+
+function applyAvailability(availability) {
+    if (!availability) {
+        return;
+    }
+    document.querySelectorAll('[data-product-card][data-ppp]').forEach((card) => {
+        const stats = availability[card.dataset.ppp];
+        if (!stats) {
+            return;
+        }
+        card.dataset.cells = JSON.stringify(stats.cells ?? {});
+        card.dataset.limit = String(stats.limit ?? 0);
+        syncCard(card);
+    });
+}
+
+
 document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-qty-step]');
 
@@ -89,6 +184,7 @@ document.addEventListener('change', (event) => {
 });
 
 // "Tambah" adds to the cart in the background so the customer stays on the menu.
+let availabilityAfterAdd = null;
 document.addEventListener('submit', async (event) => {
     const form = event.target.closest('form[data-cart-add]');
 
@@ -120,6 +216,8 @@ document.addEventListener('submit', async (event) => {
             qty.value = '1';
             clampQty(qty);
         }
+
+        availabilityAfterAdd = data.availability;
     } catch (error) {
         const response = error.response;
         let message = 'Gagal masuk keranjang. Coba lagi.';
@@ -136,6 +234,9 @@ document.addEventListener('submit', async (event) => {
             button.disabled = false;
             button.textContent = label;
         }
+        // Re-read stock after the label is back, so "Stok habis" sticks.
+        applyAvailability(availabilityAfterAdd);
+        availabilityAfterAdd = null;
     }
 });
 
