@@ -35,7 +35,7 @@ class MenuDemoSeeder extends Seeder
         $products = [
             [
                 'name' => 'Maple Matcha Latte',
-                'description' => 'Matcha dual-blend, susu D.O.A, dan sirup maple di dasar botol. Kocok dulu biar manis karamelnya rata.',
+                'description' => 'Matcha dual-blend, Signature Milk, dan sirup maple di dasar botol. Kocok dulu biar manis karamelnya rata.',
                 'size_prices' => ['250 ml' => 32000, '1 liter' => 110000],
                 'tag' => 'Maple Signature',
                 'tone' => 'amber',

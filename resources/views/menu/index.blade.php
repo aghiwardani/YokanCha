@@ -29,7 +29,7 @@
 
     $makna = [
         ['kanji' => '余暇', 'title' => 'Yoka · Waktu luang', 'body' => 'Waktu buat santai sebentar di sela kerjaan.'],
-        ['kanji' => '茶', 'title' => 'Cha · Teh hijau', 'body' => 'Matcha racikan sendiri, campuran ceremonial grade sama premium grade, ditambah susu D.O.A.'],
+        ['kanji' => '茶', 'title' => 'Cha · Teh hijau', 'body' => 'Matcha racikan sendiri, campuran ceremonial grade sama premium grade, ditambah Signature Milk.'],
         ['kanji' => '予感', 'title' => 'Yokan · Firasat baik', 'body' => 'Bunyinya mirip kata "firasat baik" dalam bahasa Jepang. Anggap aja doa kecil buat harimu.'],
     ];
 
@@ -74,7 +74,7 @@
                 </h1>
 
                 <p class="max-w-[460px] text-lg leading-[29px] text-muted">
-                    Matcha Ceremonial Blend, susu D.O.A, dan sirup maple.<span class="hidden lg:inline"> Ada ukuran {{ $sizesAnd }}, pesan sebelum {{ $deadlinePhrase }}.</span>
+                    Matcha Ceremonial Blend, Signature Milk, dan sirup maple.<span class="hidden lg:inline"> Ada ukuran {{ $sizesAnd }}, pesan sebelum {{ $deadlinePhrase }}.</span>
                 </p>
 
                 <div class="flex flex-wrap gap-[10px] lg:gap-3">

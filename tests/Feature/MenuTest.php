@@ -198,6 +198,13 @@ class MenuTest extends TestCase
             ->assertSee('Matchanya pakai grade apa?');
     }
 
+    public function test_milk_supplier_stays_secret(): void
+    {
+        $this->get('/')
+            ->assertSee('Signature Milk')
+            ->assertDontSee('D.O.A');
+    }
+
     public function test_faq_fits_selling_to_office_colleagues(): void
     {
         $this->get('/')
