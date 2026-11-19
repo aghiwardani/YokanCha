@@ -25,7 +25,16 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 step() { echo; echo "==> $*"; }
 
-step "Zona waktu ${TIMEZONE} dan update sistem"
+CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME}")"
+
+# The ondrej/php PPA only serves older Ubuntu releases (jammy, noble). A copy
+# left on newer releases (e.g. from an earlier run) breaks every apt update,
+# so it is removed before anything else.
+if [[ "$CODENAME" != "jammy" && "$CODENAME" != "noble" ]]; then
+    rm -f /etc/apt/sources.list.d/ondrej-ubuntu-php*
+fi
+
+step "Zona waktu ${TIMEZONE} dan update sistem (Ubuntu ${CODENAME})"
 timedatectl set-timezone "$TIMEZONE"
 apt-get update -y
 apt-get upgrade -y
@@ -48,15 +57,8 @@ ufw --force enable
 systemctl enable --now fail2ban
 
 step "PHP 8.4 atau lebih baru"
-# Newer Ubuntu (26.04 "resolute") ships PHP 8.4+ itself and the ondrej PPA
-# doesn't serve it, so the PPA is only used on older releases.
-CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME}")"
-if [[ "$CODENAME" != "jammy" && "$CODENAME" != "noble" ]]; then
-    add-apt-repository -y --remove ppa:ondrej/php >/dev/null 2>&1 || true
-    rm -f /etc/apt/sources.list.d/ondrej-ubuntu-php-*.list /etc/apt/sources.list.d/ondrej-ubuntu-php-*.sources
-fi
-apt-get update -y
-
+# Newer Ubuntu (26.04 "resolute") ships PHP 8.4+ itself; the ondrej PPA is
+# only added on older releases that need it.
 pick_php() {
     for v in 8.5 8.4; do
         if apt-cache show "php${v}-fpm" >/dev/null 2>&1; then echo "$v"; return; fi
