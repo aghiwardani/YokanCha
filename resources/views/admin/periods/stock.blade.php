@@ -8,7 +8,7 @@
     $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
     $hasOld = old('_form') === 'stock';
 @endphp
-<div class="min-h-screen bg-oat py-12 px-4">
+<div class="min-h-screen bg-oat py-8 px-4 sm:py-12">
     <div class="max-w-3xl mx-auto space-y-8">
         <div>
             <a href="{{ route('admin.periods') }}" class="text-sm font-semibold text-charcoal underline">&larr; Periode PO</a>
@@ -37,7 +37,7 @@
                 </div>
             @endif
 
-            <div class="bg-surface rounded-brand shadow-sm p-8">
+            <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <h2 class="text-xl font-bold text-charcoal">Stok per Bahan</h2>
                     <a
@@ -117,7 +117,7 @@
                 $lines = array_merge($lines, array_fill(0, max(2, 4 - count($lines)), $blank));
                 $field = 'w-full px-3 py-2 border-2 border-brand rounded-brand bg-surface focus:outline-none focus:ring-2 focus:ring-cta';
             @endphp
-            <div class="bg-surface rounded-brand shadow-sm p-8">
+            <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
                 <h2 class="text-xl font-bold text-charcoal">Biaya lain</h2>
                 <p class="mt-1 mb-6 text-sm text-muted">
                     Biaya selain bahan resep yang ikut dihitung di HPP (COGS). <strong>Per botol</strong> untuk kemasan dan label, atau upah per botol.
@@ -127,8 +127,8 @@
 
                 <div class="space-y-3" data-cost-lines>
                     @foreach ($lines as $i => $line)
-                        <div class="grid grid-cols-2 sm:grid-cols-[1fr_8rem_9rem_9rem] gap-2 rounded-brand border border-line p-3" data-cost-line>
-                            <div class="col-span-2 sm:col-span-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[1fr_8rem_9rem_9rem] gap-2 rounded-brand border border-line p-3" data-cost-line>
+                            <div>
                                 <label class="block text-xs font-semibold text-muted mb-1" for="extra_{{ $i }}_name">Nama biaya</label>
                                 <input id="extra_{{ $i }}_name" type="text" name="extra[{{ $i }}][name]" value="{{ $line['name'] ?? '' }}" placeholder="Botol + tutup" class="{{ $field }} @error('extra.'.$i.'.name') border-red-500 @enderror">
                             </div>
@@ -148,7 +148,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-span-2 sm:col-span-1">
+                            <div>
                                 <label class="block text-xs font-semibold text-muted mb-1" for="extra_{{ $i }}_amount">Nominal (Rp)</label>
                                 <input id="extra_{{ $i }}_amount" type="text" inputmode="numeric" data-number="int" name="extra[{{ $i }}][amount]" value="{{ ($line['amount'] ?? '') === '' ? '' : (int) \App\Support\Number::normalize((string) $line['amount']) }}" class="{{ $field }} @error('extra.'.$i.'.amount') border-red-500 @enderror">
                             </div>
@@ -188,7 +188,7 @@
                 })();
             </script>
 
-            <div class="bg-surface rounded-brand shadow-sm p-8">
+            <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
                 <h2 class="text-xl font-bold text-charcoal mb-6">Menu Periode Ini</h2>
 
                 @if ($products->isEmpty())

@@ -3,17 +3,9 @@
 @section('title', 'Periode PO - YokanCha')
 
 @section('admin-content')
-<div class="min-h-screen bg-oat py-12 px-4">
+<div class="min-h-screen bg-oat py-8 px-4 sm:py-12">
     <div class="max-w-3xl mx-auto space-y-8">
-        <div class="flex items-center justify-between">
-            <h1 class="text-3xl font-bold text-charcoal">Periode PO</h1>
-            <form action="{{ route('admin.logout') }}" method="POST">
-                @csrf
-                <button type="submit" class="text-sm font-semibold text-charcoal underline">
-                    Keluar
-                </button>
-            </form>
-        </div>
+        <h1 class="text-3xl font-bold text-charcoal">Periode PO</h1>
 
         @if (session('status'))
             <div class="p-4 bg-brand bg-opacity-10 border-2 border-brand rounded-brand text-charcoal text-sm">
@@ -21,7 +13,7 @@
             </div>
         @endif
 
-        <div class="bg-surface rounded-brand shadow-sm p-8">
+        <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
             <h2 class="text-xl font-bold text-charcoal mb-6">Buat Periode Baru</h2>
 
             @if ($errors->any())
@@ -87,7 +79,7 @@
             </form>
         </div>
 
-        <div class="bg-surface rounded-brand shadow-sm p-8">
+        <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
             <h2 class="text-xl font-bold text-charcoal mb-6">Daftar Periode</h2>
 
             @if ($periods->isEmpty())
@@ -95,7 +87,7 @@
             @else
                 <div class="space-y-4">
                     @foreach ($periods as $period)
-                        <div class="flex items-center justify-between border-2 border-brand rounded-brand p-4">
+                        <div class="flex flex-col gap-4 border-2 border-brand rounded-brand p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="font-semibold text-charcoal">{{ $period->name }}</p>
                                 <p class="text-sm text-charcoal opacity-75">

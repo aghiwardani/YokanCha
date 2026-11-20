@@ -43,7 +43,7 @@
             </div>
         @endif
 
-        <div role="tablist" aria-label="Jenis master data" class="mb-6 flex gap-1 border-b border-line">
+        <div role="tablist" aria-label="Jenis master data" class="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
             @foreach ($tabs as $id => $tab)
                 <a
                     href="#{{ $id }}"
@@ -51,7 +51,7 @@
                     role="tab"
                     aria-controls="{{ $id }}"
                     data-tab="{{ $id }}"
-                    class="-mb-px flex items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-bold text-muted transition-colors hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-cta aria-selected:border-brand aria-selected:text-brand"
+                    class="-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-muted transition-colors hover:text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-cta aria-selected:border-brand aria-selected:text-brand"
                 >
                     {{ $tab['label'] }}
                     <span class="rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-muted">{{ $tab['count'] }}</span>
