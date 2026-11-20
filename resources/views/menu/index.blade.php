@@ -136,9 +136,13 @@
         <section id="menu" class="yc-container flex scroll-mt-4 flex-col gap-4 pb-10 pt-10 lg:gap-8 lg:pb-24 lg:pt-12">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div class="flex flex-col gap-3">
-                    <h2 class="yc-h2">Menu batch ini</h2>
+                    <h2 class="yc-h2">{{ $period ? 'Menu batch ini' : 'Menu YokanCha' }}</h2>
                     <p class="max-w-[560px] text-base leading-[26px] text-muted">
-                        Harga per botol. Pilih ukuran dan tingkat manis, lalu masukkan ke keranjang.
+                        @if ($period)
+                            Harga per botol. Pilih ukuran dan tingkat manis, lalu masukkan ke keranjang.
+                        @else
+                            Harga per botol. Lihat-lihat dulu, pesannya bisa begitu batch berikutnya dibuka.
+                        @endif
                     </p>
                 </div>
 
@@ -154,11 +158,26 @@
             @endif
 
             @if (! $period)
-                <div class="flex flex-col items-center gap-4 rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
-                    <x-mascot name="lean" sizes="139px" class="yc-mascot yc-mascot-breathe h-[160px] w-auto" />
-                    <p class="font-display text-[25px] leading-7 text-charcoal">Pre-order lagi tutup dulu.</p>
-                    <p class="text-base leading-[26px] text-muted">Info batch berikutnya nanti ada di sini.</p>
-                </div>
+                @if ($catalog->isEmpty())
+                    <div class="flex flex-col items-center gap-4 rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
+                        <x-mascot name="lean" sizes="139px" class="yc-mascot yc-mascot-breathe h-[160px] w-auto" />
+                        <p class="font-display text-[25px] leading-7 text-charcoal">Pre-order lagi tutup dulu.</p>
+                        <p class="text-base leading-[26px] text-muted">Info batch berikutnya nanti ada di sini.</p>
+                    </div>
+                @else
+                    <div class="flex items-center gap-4 rounded-card border border-charcoal bg-surface px-5 py-4 lg:px-6">
+                        <x-mascot name="lean" sizes="60px" class="yc-mascot h-[64px] w-auto shrink-0" />
+                        <div>
+                            <p class="font-display text-[22px] leading-7 text-charcoal">Pre-order lagi tutup dulu.</p>
+                            <p class="text-sm leading-[22px] text-muted">Menunya bisa kamu lihat sekarang. Pesannya nanti saat batch berikutnya dibuka, infonya ada di sini.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($catalog as $product)
+                            @include('menu._catalog_card', ['product' => $product])
+                        @endforeach
+                    </div>
+                @endif
             @elseif ($items->isEmpty())
                 <div class="rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
                     <p class="font-display text-[25px] leading-7 text-charcoal">Menu batch ini belum siap.</p>

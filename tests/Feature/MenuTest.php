@@ -322,6 +322,28 @@ class MenuTest extends TestCase
         $response->assertSee('Pre-order lagi tutup dulu');
     }
 
+    public function test_closed_po_still_shows_the_menu_but_cannot_order(): void
+    {
+        Product::create([
+            'name' => 'Maple Signature', 'base_price' => 32000,
+            'size_options' => ['250 ml', '1 liter'], 'size_prices' => ['250 ml' => 32000, '1 liter' => 110000],
+            'sweetness_options' => ['Less Sugar', 'Normal'],
+        ]);
+        Product::create(['name' => 'Menu Lama', 'base_price' => 20000, 'is_active' => false]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Pre-order lagi tutup dulu.')
+            ->assertSee('Menu YokanCha')
+            ->assertSee('Maple Signature')
+            ->assertSee('Rp110.000')
+            ->assertSee('Less Sugar, Normal')
+            ->assertSee('Pesan saat PO buka')
+            ->assertDontSee('Menu Lama')
+            ->assertDontSee('data-cart-add', false)
+            ->assertDontSee('>Tambah</button>', false);
+    }
+
     public function test_sweetness_preselects_makeable_level_and_disables_unmakeable(): void
     {
         $period = PoPeriod::create([

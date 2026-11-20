@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PoPeriod;
 use App\Models\PoPeriodProduct;
+use App\Models\Product;
 use App\Services\MenuAvailability;
 use Illuminate\View\View;
 
@@ -15,6 +16,7 @@ class MenuController extends Controller
 
         $items = collect();
         $availability = [];
+        $catalog = collect();
 
         if ($period) {
             // Lowest sort_order first; the first card is rendered as the wide featured card.
@@ -26,12 +28,16 @@ class MenuController extends Controller
                 ->values();
 
             $availability = $menuAvailability->forItems($items);
+        } else {
+            // No batch open: show the menu so people can look, without ordering.
+            $catalog = Product::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
         }
 
         return view('menu.index', [
             'period' => $period,
             'items' => $items,
             'availability' => $availability,
+            'catalog' => $catalog,
         ]);
     }
 }
