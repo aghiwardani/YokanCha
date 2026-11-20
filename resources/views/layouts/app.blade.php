@@ -7,6 +7,13 @@
         <title>@yield('title', config('app.name', 'YokanCha'))</title>
         <meta name="description" content="YokanCha 余暇茶 — matcha botolan per batch. Slow Down, Sip Quietly.">
 
+        {{-- Tab and home-screen icon: the YokanCha mascot. --}}
+        <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+        <link rel="icon" href="{{ asset('favicon-32.png') }}" type="image/png" sizes="32x32">
+        <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+        <link rel="manifest" href="{{ asset('site.webmanifest') }}">
+        <meta name="theme-color" content="#4A6B4F">
+
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Gloock&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">

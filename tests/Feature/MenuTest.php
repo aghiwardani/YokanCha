@@ -276,6 +276,17 @@ class MenuTest extends TestCase
             ->assertDontSee('1 liter');
     }
 
+    public function test_pages_have_the_mascot_as_tab_icon(): void
+    {
+        $this->get('/')
+            ->assertSee('rel="icon" href="'.asset('favicon.ico').'"', false)
+            ->assertSee('rel="apple-touch-icon"', false);
+
+        foreach (['favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'] as $file) {
+            $this->assertGreaterThan(0, filesize(public_path($file)), "{$file} is empty");
+        }
+    }
+
     public function test_footer_links_to_order_lookup(): void
     {
         $this->get('/')->assertSee('href="'.route('orders.lookup').'"', false);
