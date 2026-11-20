@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PoPeriod;
 use App\Services\StockService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,7 +87,7 @@ class OrderController extends Controller
         ]);
     }
 
-    public function markPaid(Request $request, Order $order): RedirectResponse
+    public function markPaid(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         $order->update(['payment_status' => 'paid']);
 
@@ -94,7 +95,7 @@ class OrderController extends Controller
     }
 
     // Undo for a payment marked by mistake.
-    public function markUnpaid(Request $request, Order $order): RedirectResponse
+    public function markUnpaid(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         $order->update(['payment_status' => 'unpaid']);
 
@@ -105,8 +106,13 @@ class OrderController extends Controller
      * Changes made from the order list go back to the same list (filters
      * kept) and scroll to the order; the rest go to the order's page.
      */
-    private function backTo(Request $request, Order $order, string $message): RedirectResponse
+    private function backTo(Request $request, Order $order, string $message): RedirectResponse|JsonResponse
     {
+        // The order list sends these in the background and refreshes itself.
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message]);
+        }
+
         if ($request->input('from') === 'list') {
             $previous = strtok(url()->previous(), '#');
             $list = route('admin.orders');
@@ -118,7 +124,7 @@ class OrderController extends Controller
         return redirect()->route('admin.orders.show', $order)->with('status', $message);
     }
 
-    public function updateStatus(Request $request, Order $order): RedirectResponse
+    public function updateStatus(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'order_status' => ['required', 'in:new,diproses,siap_diambil,selesai'],

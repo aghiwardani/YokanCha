@@ -28,7 +28,7 @@
 
 @section('admin-content')
 <div class="min-h-screen bg-oat py-10 px-4">
-    <div class="max-w-5xl mx-auto space-y-6">
+    <div class="max-w-5xl mx-auto space-y-6" data-orders-root>
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-charcoal">Pesanan</h1>
@@ -213,7 +213,7 @@
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-muted">Bayar</span>
                                     <div class="inline-flex rounded-full border border-line bg-surface p-0.5">
-                                        <form action="{{ route('admin.orders.mark-unpaid', $order) }}" method="POST">
+                                        <form action="{{ route('admin.orders.mark-unpaid', $order) }}" method="POST" data-quick>
                                             @csrf
                                             <input type="hidden" name="from" value="list">
                                             <button type="submit" @disabled(! $paid) aria-pressed="{{ $paid ? 'false' : 'true' }}"
@@ -221,7 +221,7 @@
                                                 Belum bayar
                                             </button>
                                         </form>
-                                        <form action="{{ route('admin.orders.mark-paid', $order) }}" method="POST">
+                                        <form action="{{ route('admin.orders.mark-paid', $order) }}" method="POST" data-quick>
                                             @csrf
                                             <input type="hidden" name="from" value="list">
                                             <button type="submit" @disabled($paid) aria-pressed="{{ $paid ? 'true' : 'false' }}"
@@ -232,7 +232,7 @@
                                     </div>
                                 </div>
 
-                                <form action="{{ route('admin.orders.status', $order) }}" method="POST" class="flex items-center gap-2">
+                                <form action="{{ route('admin.orders.status', $order) }}" method="POST" class="flex items-center gap-2" data-quick>
                                     @csrf
                                     <input type="hidden" name="from" value="list">
                                     <span class="text-xs font-semibold text-muted">Status</span>
@@ -254,4 +254,54 @@
         @endif
     </div>
 </div>
+
+<div data-quick-toast role="status" aria-live="polite"
+     class="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-charcoal px-5 py-3 text-sm font-semibold text-surface shadow-lg opacity-0 transition-opacity duration-200"></div>
+
+<script>
+    // Quick payment/status buttons: save in the background, then swap in a
+    // fresh copy of the list so counts and filters stay right and the page
+    // does not jump. Without JavaScript the forms still work normally.
+    (() => {
+        const toast = document.querySelector('[data-quick-toast]');
+        let timer;
+        const say = (text) => {
+            toast.textContent = text;
+            toast.classList.remove('opacity-0');
+            clearTimeout(timer);
+            timer = setTimeout(() => toast.classList.add('opacity-0'), 2500);
+        };
+
+        document.addEventListener('submit', async (event) => {
+            const form = event.target.closest('form[data-quick]');
+            if (!form) return;
+            event.preventDefault();
+
+            const data = new FormData(form);
+            if (event.submitter?.name) data.append(event.submitter.name, event.submitter.value);
+            form.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+
+            try {
+                const saved = await fetch(form.action, {
+                    method: 'POST',
+                    body: data,
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const body = await saved.json().catch(() => ({}));
+                if (!saved.ok) {
+                    const firstError = body.errors ? Object.values(body.errors)[0][0] : null;
+                    throw new Error(firstError || (saved.status === 419 ? 'Sesi habis. Muat ulang halaman.' : 'Gagal menyimpan. Coba lagi.'));
+                }
+
+                const page = await fetch(location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const fresh = new DOMParser().parseFromString(await page.text(), 'text/html').querySelector('[data-orders-root]');
+                if (fresh) document.querySelector('[data-orders-root]').replaceWith(fresh);
+                say(body.message || 'Tersimpan.');
+            } catch (error) {
+                form.querySelectorAll('button:not([aria-pressed="true"])').forEach((b) => { b.disabled = false; });
+                say(error.message);
+            }
+        });
+    })();
+</script>
 @endsection

@@ -346,4 +346,17 @@ class OrderManagementTest extends TestCase
         $this->from('https://evil.example/x')->post(route('admin.orders.mark-paid', $order), ['from' => 'list'])
             ->assertRedirect(route('admin.orders').'#order-'.$order->id);
     }
+
+    public function test_quick_change_in_background_answers_with_json(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        [$order] = $this->makeOrderWithReservedStock();
+
+        $this->postJson(route('admin.orders.status', $order), ['from' => 'list', 'order_status' => 'diproses'])
+            ->assertOk()
+            ->assertJson(['message' => 'Status pesanan Budi diubah ke Diproses.']);
+        $this->assertSame('diproses', $order->fresh()->order_status);
+
+        $this->get('/admin/orders')->assertSee('data-orders-root', false)->assertSee('data-quick', false);
+    }
 }
