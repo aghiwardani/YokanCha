@@ -8,7 +8,7 @@ document.addEventListener('change', (event) => {
         return;
     }
 
-    const card = input.closest('[data-product-card]');
+    const card = input.closest('[data-product-card], [data-catalog-card]');
 
     if (!card) {
         return;

@@ -337,7 +337,7 @@ class MenuTest extends TestCase
             ->assertSee('Menu YokanCha')
             ->assertSee('Maple Signature')
             ->assertSee('Rp110.000')
-            ->assertSee('Less Sugar, Normal')
+            ->assertSeeInOrder(['Less Sugar', 'Normal'])
             ->assertSee('Pesan saat PO buka')
             ->assertDontSee('Menu Lama')
             ->assertDontSee('data-cart-add', false)
