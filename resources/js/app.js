@@ -274,9 +274,23 @@ const formatField = (input, keepCaret) => {
     }
 };
 
+// Values from the server are plain ("2.5", "32000"). One that already comes
+// in the Indonesian format ("80.000", "1.250,5") is kept as it is, so
+// "80.000" is never read as 80 with three decimals.
+const alreadyFormatted = (text) => /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(text) || /^\d+,\d+$/.test(text);
+
 document.querySelectorAll('input[data-number]').forEach((input) => {
-    // Values rendered by the server are plain ("2.5", "32000").
-    input.value = formatAmount(input.value.replace('.', ','), input.dataset.number !== 'int');
+    const value = input.value.trim();
+    const allowDecimal = input.dataset.number !== 'int';
+
+    if (alreadyFormatted(value)) {
+        input.value = formatAmount(value, allowDecimal);
+    } else if (allowDecimal) {
+        input.value = formatAmount(value.replace('.', ','), true);
+    } else {
+        // Whole numbers: drop a plain decimal part ("80000.00" -> "80000").
+        input.value = formatAmount(value.replace(/\.\d*$/, ''), false);
+    }
 });
 
 document.addEventListener('input', (event) => {

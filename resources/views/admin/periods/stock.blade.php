@@ -66,7 +66,8 @@
                             @endphp
                             @php
                                 $cost = $hasOld ? old('cost.'.$ingredient->id) : ($costs[$ingredient->id] ?? null);
-                                $cost = ($cost === null || $cost === '') ? '' : number_format((int) str_replace('.', '', (string) $cost), 0, ',', '.');
+                                // Plain digits ("80000"); the page script adds the thousand dots.
+                                $cost = ($cost === null || $cost === '') ? '' : (string) (int) \App\Support\Number::normalize((string) $cost);
                                 $unitCost = $row?->unitCost();
                             @endphp
                             <div class="border-2 border-brand rounded-brand p-4 space-y-3">
@@ -149,7 +150,7 @@
                             </div>
                             <div class="col-span-2 sm:col-span-1">
                                 <label class="block text-xs font-semibold text-muted mb-1" for="extra_{{ $i }}_amount">Nominal (Rp)</label>
-                                <input id="extra_{{ $i }}_amount" type="text" inputmode="numeric" data-number="int" name="extra[{{ $i }}][amount]" value="{{ ($line['amount'] ?? '') === '' ? '' : number_format((int) $line['amount'], 0, ',', '.') }}" class="{{ $field }} @error('extra.'.$i.'.amount') border-red-500 @enderror">
+                                <input id="extra_{{ $i }}_amount" type="text" inputmode="numeric" data-number="int" name="extra[{{ $i }}][amount]" value="{{ ($line['amount'] ?? '') === '' ? '' : (int) \App\Support\Number::normalize((string) $line['amount']) }}" class="{{ $field }} @error('extra.'.$i.'.amount') border-red-500 @enderror">
                             </div>
                         </div>
                     @endforeach

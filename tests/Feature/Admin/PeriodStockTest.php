@@ -171,8 +171,25 @@ class PeriodStockTest extends TestCase
         $this->assertEquals(20.0, $row->unitCost());
 
         $this->get("/admin/periods/{$period->id}/stock")
-            ->assertSee('value="40.000"', false)
+            ->assertSee('value="40000"', false)
             ->assertSee('Rp20 per ml');
+    }
+
+    public function test_saving_the_page_again_keeps_the_price_intact(): void
+    {
+        // Bug: 80.000 was shown pre-formatted, read back by the page script
+        // as 80 and saved as 80 on the next save.
+        $period = PoPeriod::factory()->create();
+        $milk = $this->ingredient('Susu');
+        $period->costs()->create(['name' => 'Es batu', 'type' => 'per_batch', 'amount' => 25000]);
+        $this->put("/admin/periods/{$period->id}/stock", ['stock' => [$milk->id => '2000'], 'cost' => [$milk->id => '80.000']]);
+
+        $html = $this->get("/admin/periods/{$period->id}/stock")->getContent();
+
+        $this->assertStringContainsString('name="cost['.$milk->id.']"', $html);
+        $this->assertMatchesRegularExpression('/name="cost\['.$milk->id.'\]"\s+value="80000"/', $html);
+        $this->assertMatchesRegularExpression('/name="extra\[0\]\[amount\]" value="25000"/', $html);
+        $this->assertSame(80000, PoPeriodIngredient::where('ingredient_id', $milk->id)->value('cost'));
     }
 
     public function test_saving_without_price_field_keeps_the_saved_price(): void
@@ -198,7 +215,7 @@ class PeriodStockTest extends TestCase
         // 500 ml left at Rp20 per ml.
         $this->get("/admin/periods/{$period->id}/stock?prefill=previous")
             ->assertSee('value="500"', false)
-            ->assertSee('value="10.000"', false);
+            ->assertSee('value="10000"', false);
     }
 
     public function test_other_costs_are_saved_and_replace_the_old_list(): void
