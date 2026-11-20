@@ -23,10 +23,32 @@
                     @endif
                 </p>
             </div>
-            <button type="button" onclick="window.print()" class="px-4 py-2 rounded-full bg-charcoal text-sm font-semibold text-surface hover:opacity-90 print:hidden">
-                Cetak
-            </button>
+            <div class="flex flex-wrap gap-2 print:hidden">
+                <form action="{{ route('admin.periods.production.recipes', $period) }}" method="POST"
+                      onsubmit="return confirm('Hitung ulang takaran semua pesanan di batch ini dari resep terbaru di master? Stok terpakai ikut disesuaikan.');">
+                    @csrf
+                    <button type="submit" class="px-4 py-2 rounded-full border border-brand bg-surface text-sm font-semibold text-brand hover:bg-sage-soft">
+                        Pakai resep terbaru
+                    </button>
+                </form>
+                <form action="{{ route('admin.periods.production.prices', $period) }}" method="POST"
+                      onsubmit="return confirm('Ganti harga beli bahan di periode ini dengan harga dari master Bahan?');">
+                    @csrf
+                    <button type="submit" class="px-4 py-2 rounded-full border border-brand bg-surface text-sm font-semibold text-brand hover:bg-sage-soft">
+                        Pakai harga dari master
+                    </button>
+                </form>
+                <button type="button" onclick="window.print()" class="px-4 py-2 rounded-full bg-charcoal text-sm font-semibold text-surface hover:opacity-90">
+                    Cetak
+                </button>
+            </div>
         </div>
+
+        @if (session('status'))
+            <div class="p-4 rounded-brand border border-brand/30 bg-sage-soft text-sm text-charcoal print:hidden" role="status">
+                {{ session('status') }}
+            </div>
+        @endif
 
         @if ($stillOpen)
             <div class="p-4 rounded-brand border border-cta/30 bg-amber-soft text-sm text-amber-text print:hidden">

@@ -164,4 +164,67 @@ class ProductionTest extends TestCase
             ->assertSee('Rp22.500')    // biaya lain: 5 x 2.500 + 10.000
             ->assertSee('-Rp2.500');   // 160.000 - 140.000 - 22.500
     }
+
+    public function test_recipes_can_be_refreshed_from_the_master(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $product = Product::create(['name' => 'Matcha Oat', 'base_price' => 32000, 'size_options' => ['250 ml']]);
+        $milk = $this->ingredient('Oatside');
+        $matcha = $this->ingredient('Matcha', 'g');
+        $milkStock = $this->stock($period, $milk, 2000, 400);
+        // Ordered when the recipe was 200 ml oat per bottle (2 bottles), no matcha yet.
+        $order = $this->order($period, 'Nui', 'new', [[$product, '250 ml', '-', 2, [[$milk, 200]]]]);
+        $cancelled = $this->order($period, 'Batal', 'cancelled', [[$product, '250 ml', '-', 3, [[$milk, 200]]]]);
+
+        // Recipe changed in the master afterwards.
+        $this->recipe($product, '250 ml', $milk, 180);
+        $this->recipe($product, '250 ml', $matcha, 4);
+
+        $this->post(route('admin.periods.production.recipes', $period))
+            ->assertRedirect(route('admin.periods.production', $period))
+            ->assertSessionHas('status', fn ($m) => str_contains($m, 'dihitung ulang') && str_contains($m, 'Stok kurang untuk: Matcha'));
+
+        $this->assertEquals(360, $milkStock->fresh()->used);
+        $this->assertEquals(8, \App\Models\PoPeriodIngredient::where('ingredient_id', $matcha->id)->value('used'));
+        $this->assertEquals(
+            [$milk->id => 360.0, $matcha->id => 8.0],
+            $order->items()->first()->ingredientUsages->mapWithKeys(fn ($u) => [$u->ingredient_id => (float) $u->amount])->all(),
+        );
+        // Cancelled orders are left alone.
+        $this->assertEquals(600, (float) $cancelled->items()->first()->ingredientUsages()->value('amount'));
+    }
+
+    public function test_prices_can_be_filled_from_the_master(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $oat = $this->ingredient('Oatside');
+        $oat->update(['pack_size' => 1000, 'pack_price' => 38000]);
+        $matcha = $this->ingredient('Matcha', 'g');
+        $oatStock = $this->stock($period, $oat, 2000);
+        $matchaStock = $this->stock($period, $matcha, 100);
+        $matchaStock->update(['cost' => 5000]);
+
+        $this->post(route('admin.periods.production.prices', $period))
+            ->assertSessionHas('status', 'Harga beli 1 bahan diisi dari harga master. Belum ada harga di master untuk: Matcha.');
+
+        $this->assertSame(76000, $oatStock->fresh()->cost);
+        $this->assertSame(5000, $matchaStock->fresh()->cost);
+    }
+
+    public function test_ingredient_master_saves_pack_price(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->post(route('admin.ingredients.store'), [
+            'name' => 'Oatside', 'unit' => 'ml', 'pack_size' => '1.000', 'pack_price' => '38.000',
+        ])->assertSessionHasNoErrors();
+
+        $oat = \App\Models\Ingredient::where('name', 'Oatside')->first();
+        $this->assertEquals(38.0, $oat->unitPrice());
+
+        $this->post(route('admin.ingredients.store'), ['name' => 'Susu', 'unit' => 'ml', 'pack_price' => '20.000'])
+            ->assertSessionHasErrors('pack_size');
+    }
 }

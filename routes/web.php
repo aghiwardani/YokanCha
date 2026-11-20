@@ -52,6 +52,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/periods/{period}/stock', [PoPeriodController::class, 'stock'])->name('periods.stock');
     Route::put('/periods/{period}/stock', [PoPeriodController::class, 'updateStock'])->name('periods.stock.update');
     Route::get('/periods/{period}/production', [ProductionController::class, 'show'])->name('periods.production');
+    Route::post('/periods/{period}/production/recipes', [ProductionController::class, 'refreshRecipes'])->name('periods.production.recipes');
+    Route::post('/periods/{period}/production/prices', [ProductionController::class, 'refreshPrices'])->name('periods.production.prices');
 
     // Master data: products (Produk), ingredients (Bahan) and sizes (Ukuran) on one page.
     Route::get('/products', fn () => redirect()->to(route('admin.master').'#produk'))->name('products');
