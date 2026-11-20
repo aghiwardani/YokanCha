@@ -291,4 +291,59 @@ class OrderManagementTest extends TestCase
         $this->get('/admin/orders?q=santi')
             ->assertSee('Santi Nunggak')->assertDontSee('Nui Lunas');
     }
+
+    public function test_list_changes_payment_and_status_and_returns_to_the_same_card(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::factory()->create();
+        $product = Product::factory()->create();
+        $order = $this->listOrder($period, $product, 'Nui', 'unpaid', 'new', 1, 32000);
+        $list = route('admin.orders', ['po_period_id' => $period->id, 'payment' => 'unpaid']);
+
+        $this->from($list)->post(route('admin.orders.mark-paid', $order), ['from' => 'list'])
+            ->assertRedirect($list.'#order-'.$order->id)
+            ->assertSessionHas('status', 'Pesanan Nui ditandai sudah bayar.');
+        $this->assertSame('paid', $order->fresh()->payment_status);
+
+        $this->from($list)->post(route('admin.orders.status', $order), ['from' => 'list', 'order_status' => 'siap_diambil'])
+            ->assertRedirect($list.'#order-'.$order->id)
+            ->assertSessionHas('status', 'Status pesanan Nui diubah ke Siap diambil.');
+        $this->assertSame('siap_diambil', $order->fresh()->order_status);
+
+        $this->from($list)->post(route('admin.orders.mark-unpaid', $order), ['from' => 'list'])
+            ->assertRedirect($list.'#order-'.$order->id);
+        $this->assertSame('unpaid', $order->fresh()->payment_status);
+    }
+
+    public function test_list_shows_quick_controls_except_for_cancelled_orders(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::factory()->create();
+        $product = Product::factory()->create();
+        $live = $this->listOrder($period, $product, 'Nui', 'unpaid', 'new', 1, 32000);
+        $gone = $this->listOrder($period, $product, 'Batal', 'unpaid', 'cancelled', 1, 32000);
+
+        $this->get('/admin/orders')
+            ->assertSee(route('admin.orders.mark-paid', $live), false)
+            ->assertSee(route('admin.orders.status', $live), false)
+            ->assertDontSee(route('admin.orders.mark-paid', $gone), false)
+            ->assertDontSee(route('admin.orders.status', $gone), false);
+    }
+
+    public function test_change_from_detail_page_still_returns_to_detail(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        [$order] = $this->makeOrderWithReservedStock();
+
+        $this->post(route('admin.orders.mark-paid', $order))->assertRedirect(route('admin.orders.show', $order));
+    }
+
+    public function test_redirect_never_leaves_the_order_list(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        [$order] = $this->makeOrderWithReservedStock();
+
+        $this->from('https://evil.example/x')->post(route('admin.orders.mark-paid', $order), ['from' => 'list'])
+            ->assertRedirect(route('admin.orders').'#order-'.$order->id);
+    }
 }

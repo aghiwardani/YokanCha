@@ -86,12 +86,36 @@ class OrderController extends Controller
         ]);
     }
 
-    public function markPaid(Order $order): RedirectResponse
+    public function markPaid(Request $request, Order $order): RedirectResponse
     {
         $order->update(['payment_status' => 'paid']);
 
-        return redirect()->route('admin.orders.show', $order)
-            ->with('status', 'Pesanan ditandai sudah bayar.');
+        return $this->backTo($request, $order, "Pesanan {$order->customer_name} ditandai sudah bayar.");
+    }
+
+    // Undo for a payment marked by mistake.
+    public function markUnpaid(Request $request, Order $order): RedirectResponse
+    {
+        $order->update(['payment_status' => 'unpaid']);
+
+        return $this->backTo($request, $order, "Pesanan {$order->customer_name} ditandai belum bayar.");
+    }
+
+    /**
+     * Changes made from the order list go back to the same list (filters
+     * kept) and scroll to the order; the rest go to the order's page.
+     */
+    private function backTo(Request $request, Order $order, string $message): RedirectResponse
+    {
+        if ($request->input('from') === 'list') {
+            $previous = strtok(url()->previous(), '#');
+            $list = route('admin.orders');
+            $target = str_starts_with($previous, $list) ? $previous : $list;
+
+            return redirect()->to($target.'#order-'.$order->id)->with('status', $message);
+        }
+
+        return redirect()->route('admin.orders.show', $order)->with('status', $message);
     }
 
     public function updateStatus(Request $request, Order $order): RedirectResponse
@@ -111,8 +135,9 @@ class OrderController extends Controller
 
         $order->update(['order_status' => $validated['order_status']]);
 
-        return redirect()->route('admin.orders.show', $order)
-            ->with('status', 'Status pesanan diubah.');
+        $label = ['new' => 'Baru', 'diproses' => 'Diproses', 'siap_diambil' => 'Siap diambil', 'selesai' => 'Selesai'][$validated['order_status']];
+
+        return $this->backTo($request, $order, "Status pesanan {$order->customer_name} diubah ke {$label}.");
     }
 
     public function cancel(Order $order): RedirectResponse

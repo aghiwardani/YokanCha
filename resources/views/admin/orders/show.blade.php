@@ -75,6 +75,16 @@
                             Tandai Sudah Bayar
                         </button>
                     </form>
+                @else
+                    <form action="{{ route('admin.orders.mark-unpaid', $order) }}" method="POST">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="px-4 py-2 border-2 border-cta text-amber-text font-semibold rounded-brand hover:bg-amber-soft transition duration-200"
+                        >
+                            Tandai Belum Bayar
+                        </button>
+                    </form>
                 @endif
 
                 @if ($order->order_status !== 'cancelled')

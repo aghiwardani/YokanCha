@@ -153,7 +153,7 @@
                         $paid = $order->payment_status === 'paid';
                         $cancelled = $order->order_status === 'cancelled';
                     @endphp
-                    <article class="relative bg-surface rounded-brand border border-line overflow-hidden {{ $cancelled ? 'opacity-60' : '' }}">
+                    <article id="order-{{ $order->id }}" class="relative scroll-mt-6 bg-surface rounded-brand border border-line overflow-hidden {{ $cancelled ? 'opacity-60' : '' }}">
                         <div class="absolute inset-y-0 left-0 w-1.5 {{ $cancelled ? 'bg-line' : ($paid ? 'bg-brand' : 'bg-cta') }}" aria-hidden="true"></div>
 
                         <div class="pl-6 pr-5 py-4 flex flex-col md:flex-row md:items-start gap-4">
@@ -186,14 +186,14 @@
 
                             <div class="flex md:flex-col md:items-end items-center justify-between gap-3 shrink-0">
                                 <p class="text-xl font-bold text-charcoal">{{ $rp($order->total()) }}</p>
-                                <div class="flex gap-2">
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $paid ? 'bg-sage-soft text-brand' : 'bg-amber-soft text-amber-text' }}">
-                                        {{ $paid ? 'Sudah Bayar' : 'Belum Bayar' }}
-                                    </span>
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $statusStyles[$order->order_status] ?? 'bg-charcoal text-surface' }}">
-                                        {{ $statusLabels[$order->order_status] ?? $order->order_status }}
-                                    </span>
-                                </div>
+                                @if ($cancelled)
+                                    <div class="flex gap-2">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $paid ? 'bg-sage-soft text-brand' : 'bg-amber-soft text-amber-text' }}">
+                                            {{ $paid ? 'Sudah Bayar' : 'Belum Bayar' }}
+                                        </span>
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $statusStyles['cancelled'] }}">Dibatalkan</span>
+                                    </div>
+                                @endif
                                 <div class="flex gap-2">
                                     <a href="https://wa.me/{{ \App\Support\Phone::normalize($order->customer_whatsapp) }}" target="_blank" rel="noopener"
                                        class="px-3 py-1.5 rounded-full border border-brand text-xs font-semibold text-brand hover:bg-sage-soft">
@@ -206,6 +206,48 @@
                                 </div>
                             </div>
                         </div>
+
+                        @unless ($cancelled)
+                            {{-- Quick changes: one click, back to this card with the filters kept. --}}
+                            <div class="border-t border-line bg-oat/60 pl-6 pr-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold text-muted">Bayar</span>
+                                    <div class="inline-flex rounded-full border border-line bg-surface p-0.5">
+                                        <form action="{{ route('admin.orders.mark-unpaid', $order) }}" method="POST">
+                                            @csrf
+                                            <input type="hidden" name="from" value="list">
+                                            <button type="submit" @disabled(! $paid) aria-pressed="{{ $paid ? 'false' : 'true' }}"
+                                                class="px-3 py-1 rounded-full text-xs font-semibold transition {{ $paid ? 'text-muted hover:bg-oat' : 'bg-amber-soft text-amber-text cursor-default' }}">
+                                                Belum bayar
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('admin.orders.mark-paid', $order) }}" method="POST">
+                                            @csrf
+                                            <input type="hidden" name="from" value="list">
+                                            <button type="submit" @disabled($paid) aria-pressed="{{ $paid ? 'true' : 'false' }}"
+                                                class="px-3 py-1 rounded-full text-xs font-semibold transition {{ $paid ? 'bg-brand text-surface cursor-default' : 'text-muted hover:bg-oat' }}">
+                                                Sudah bayar
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <form action="{{ route('admin.orders.status', $order) }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="from" value="list">
+                                    <span class="text-xs font-semibold text-muted">Status</span>
+                                    <div class="inline-flex flex-wrap rounded-full border border-line bg-surface p-0.5">
+                                        @foreach (['new', 'diproses', 'siap_diambil', 'selesai'] as $value)
+                                            @php $active = $order->order_status === $value; @endphp
+                                            <button type="submit" name="order_status" value="{{ $value }}" @disabled($active) aria-pressed="{{ $active ? 'true' : 'false' }}"
+                                                class="px-3 py-1 rounded-full text-xs font-semibold transition {{ $active ? $statusStyles[$value].' cursor-default' : 'text-muted hover:bg-oat' }}">
+                                                {{ $statusLabels[$value] }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </form>
+                            </div>
+                        @endunless
                     </article>
                 @endforeach
             </div>
