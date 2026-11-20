@@ -26,6 +26,13 @@
                 >
                     Pesanan
                 </a>
+
+                <a
+                    href="{{ route('admin.settings') }}"
+                    class="text-sm font-semibold text-charcoal/70 hover:text-brand {{ request()->routeIs('admin.settings*') ? 'text-brand' : '' }}"
+                >
+                    Pengaturan
+                </a>
             </div>
 
             <form method="POST" action="{{ route('admin.logout') }}">

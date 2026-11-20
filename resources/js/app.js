@@ -226,6 +226,9 @@ document.addEventListener('submit', async (event) => {
             message = Object.values(response.data.errors)[0][0];
         } else if (response?.status === 419) {
             message = 'Sesi habis. Muat ulang halaman, lalu coba lagi.';
+        } else if (response?.status === 429) {
+            const wait = Number(response.headers?.['retry-after']) || 60;
+            message = `Terlalu cepat. Tunggu ${wait} detik, lalu coba lagi.`;
         }
 
         showToast(message, 'error');

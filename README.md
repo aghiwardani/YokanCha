@@ -98,7 +98,13 @@ other accounts (like the seeded `test@example.com`) are refused.
 
 **Change this password after first login (or before deploying to production).** These
 are placeholder credentials meant only to get the admin panel usable immediately after
-setup.
+setup. Change the name, email and password under **Admin → Pengaturan → Akun admin**.
+
+## Shop settings
+
+The WhatsApp number, bank transfer details and the bottle limit per order are edited under
+**Admin → Pengaturan → Info toko** and stored in the `settings` table. The `YOKANCHA_*`
+values in `.env` are only the fallback used until something is saved there.
 
 If you only want the admin seeder (without the test user), run it on its own:
 

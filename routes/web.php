@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductionController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SizeController;
 use App\Http\Controllers\Admin\SweetnessLevelController;
 use App\Http\Controllers\Auth\AdminLoginController;
@@ -17,22 +18,25 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [MenuController::class, 'index'])->name('menu.index');
 
-Route::post('/cart', [CartController::class, 'add'])->name('cart.add');
+Route::post('/cart', [CartController::class, 'add'])->middleware('throttle:cart')->name('cart.add');
 Route::get('/cart', [CartController::class, 'show'])->name('cart.show');
 Route::patch('/cart/{lineKey}', [CartController::class, 'update'])
+    ->middleware('throttle:cart')
     ->where('lineKey', '.*')
     ->name('cart.update');
 Route::delete('/cart/{lineKey}', [CartController::class, 'remove'])
+    ->middleware('throttle:cart')
     ->where('lineKey', '.*')
     ->name('cart.remove');
 
 Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
-Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:checkout')->name('checkout.store');
 Route::get('/checkout/confirmation/{orderNumber}', [CheckoutController::class, 'confirmation'])
+    ->middleware('throttle:order-lookup')
     ->name('checkout.confirmation');
 
 Route::get('/orders/lookup', [OrderLookupController::class, 'show'])->name('orders.lookup');
-Route::post('/orders/lookup', [OrderLookupController::class, 'search'])->name('orders.lookup.search');
+Route::post('/orders/lookup', [OrderLookupController::class, 'search'])->middleware('throttle:order-lookup')->name('orders.lookup.search');
 
 // Admin login (unauthenticated) — guards the group below.
 Route::get('/admin/login', [AdminLoginController::class, 'create'])->name('admin.login');
@@ -86,4 +90,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/orders/{order}/mark-unpaid', [OrderController::class, 'markUnpaid'])->name('orders.mark-unpaid');
     Route::post('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+
+    Route::get('/settings', [SettingsController::class, 'show'])->name('settings');
+    Route::put('/settings/shop', [SettingsController::class, 'updateShop'])->name('settings.shop');
+    Route::put('/settings/account', [SettingsController::class, 'updateAccount'])->name('settings.account');
 });
