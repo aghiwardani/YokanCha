@@ -100,6 +100,16 @@ other accounts (like the seeded `test@example.com`) are refused.
 are placeholder credentials meant only to get the admin panel usable immediately after
 setup. Change the name, email and password under **Admin → Pengaturan → Akun admin**.
 
+Forgot the admin password? On the server run:
+
+```bash
+cd /var/www/yokancha && sudo -u deploy php artisan admin:reset-password
+```
+
+It shows the admin email and asks for the new password twice (hidden while typing, not
+kept in the shell history), then signs that account out of every browser. With more than
+one admin, pick one from the list or pass `--email=...`.
+
 ## Shop settings
 
 The WhatsApp number, bank transfer details and the bottle limit per order are edited under
