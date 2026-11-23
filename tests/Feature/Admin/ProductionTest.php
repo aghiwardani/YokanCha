@@ -213,6 +213,21 @@ class ProductionTest extends TestCase
         $this->assertSame(5000, $matchaStock->fresh()->cost);
     }
 
+    public function test_master_prices_only_reprice_the_new_purchase(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $period = PoPeriod::create(['name' => 'PO', 'status' => 'closed']);
+        $oat = $this->ingredient('Oatside');
+        $oat->update(['pack_size' => 1000, 'pack_price' => 38000]);
+        // 500 ml carried in worth Rp10.000, plus 1.000 ml bought.
+        $row = $this->stock($period, $oat, 1500);
+        $row->update(['carried' => 500, 'carried_cost' => 10000, 'cost' => 99999]);
+
+        $this->post(route('admin.periods.production.prices', $period));
+
+        $this->assertSame(48000, $row->fresh()->cost); // 10.000 + 1.000 x Rp38
+    }
+
     public function test_ingredient_master_saves_pack_price(): void
     {
         $this->actingAs(User::factory()->admin()->create());

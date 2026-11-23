@@ -98,7 +98,8 @@ class ProductionController extends Controller
     }
 
     /**
-     * Fill this period's purchase cost from the master price: stock x price per unit.
+     * Price this period's new purchases at the master price (amount bought x
+     * price per unit). Leftovers carried in keep the value they came with.
      */
     public function refreshPrices(PoPeriod $period): RedirectResponse
     {
@@ -112,7 +113,7 @@ class ProductionController extends Controller
                 $missing[] = $row->ingredient?->name;
                 continue;
             }
-            $row->update(['cost' => (int) round((float) $row->stock * $unit)]);
+            $row->update(['cost' => (int) $row->carried_cost + (int) round($row->bought() * $unit)]);
             $updated++;
         }
 

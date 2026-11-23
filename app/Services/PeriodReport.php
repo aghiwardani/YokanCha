@@ -125,7 +125,9 @@ class PeriodReport
         $cogs = $ingredientCost + $packagingCost + ($bottleCount > 0 ? $batchTotal : 0);
         $revenue = (int) $orders->sum(fn (Order $o) => $o->total());
         $paid = (int) $orders->where('payment_status', 'paid')->sum(fn (Order $o) => $o->total());
-        $spent = (int) $stock->sum(fn (PoPeriodIngredient $row) => $row->cost ?? 0);
+        // Money spent this period: new purchases only. Leftovers carried in were
+        // paid for in the previous period (their value still counts in HPP).
+        $spent = (int) $stock->sum(fn (PoPeriodIngredient $row) => $row->boughtCost() ?? 0);
         $leftoverValue = $stock->sum(fn (PoPeriodIngredient $row) => $row->unitCost() === null ? 0 : max(0, $row->remaining()) * $row->unitCost());
 
         $profit = [

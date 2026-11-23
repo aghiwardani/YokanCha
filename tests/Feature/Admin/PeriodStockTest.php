@@ -62,8 +62,11 @@ class PeriodStockTest extends TestCase
 
         $this->get("/admin/periods/{$period->id}/stock")
             ->assertOk()
-            ->assertSee('name="stock['.$milk->id.']"', false)
-            ->assertSee('data-number', false);
+            ->assertSee('name="buy['.$milk->id.']"', false)
+            ->assertSee('name="buy_cost['.$milk->id.']"', false)
+            ->assertSee('data-number', false)
+            // No previous period, so nothing to carry over.
+            ->assertDontSee('name="carried['.$milk->id.']"', false);
     }
 
     public function test_stock_above_column_limit_is_rejected(): void
@@ -126,18 +129,20 @@ class PeriodStockTest extends TestCase
         $this->assertEquals(500, PoPeriodIngredient::first()->stock);
     }
 
-    public function test_prefill_uses_previous_period_remaining(): void
+    public function test_new_period_offers_the_previous_leftovers(): void
     {
-        $prev = PoPeriod::factory()->create(['created_at' => now()->subDays(10)]);
+        $prev = PoPeriod::factory()->create(['name' => 'PO Lalu', 'created_at' => now()->subDays(10)]);
         $period = PoPeriod::factory()->create(['created_at' => now()]);
         $milk = $this->ingredient('Susu');
         $this->stock($prev, $milk, 100, 70);
 
-        $response = $this->get("/admin/periods/{$period->id}/stock?prefill=previous");
-
-        $response->assertOk()->assertSee('Isi dari sisa periode lalu');
-        $response->assertSee('name="stock['.$milk->id.']"', false);
-        $response->assertSee('value="30"', false);
+        $this->get("/admin/periods/{$period->id}/stock")
+            ->assertOk()
+            ->assertSee('Sisa bahan dari PO Lalu sudah terisi')
+            ->assertSee('Sisa di PO Lalu: 30 ml')
+            ->assertSee('Basi semua')
+            ->assertSee('name="carried['.$milk->id.']"', false)
+            ->assertSee('value="30"', false);
         $this->assertDatabaseMissing('po_period_ingredients', ['po_period_id' => $period->id]);
     }
 
@@ -182,12 +187,12 @@ class PeriodStockTest extends TestCase
         $period = PoPeriod::factory()->create();
         $milk = $this->ingredient('Susu');
         $period->costs()->create(['name' => 'Es batu', 'type' => 'per_batch', 'amount' => 25000]);
-        $this->put("/admin/periods/{$period->id}/stock", ['stock' => [$milk->id => '2000'], 'cost' => [$milk->id => '80.000']]);
+        $this->put("/admin/periods/{$period->id}/stock", ['buy' => [$milk->id => '2.000'], 'buy_cost' => [$milk->id => '80.000']]);
 
         $html = $this->get("/admin/periods/{$period->id}/stock")->getContent();
 
-        $this->assertStringContainsString('name="cost['.$milk->id.']"', $html);
-        $this->assertMatchesRegularExpression('/name="cost\['.$milk->id.'\]"\s+value="80000"/', $html);
+        $this->assertMatchesRegularExpression('/name="buy_cost\['.$milk->id.'\]"\s+value="80000"/', $html);
+        $this->assertMatchesRegularExpression('/name="buy\['.$milk->id.'\]"\s+value="2000"/', $html);
         $this->assertMatchesRegularExpression('/name="extra\[0\]\[amount\]" value="25000"/', $html);
         $this->assertSame(80000, PoPeriodIngredient::where('ingredient_id', $milk->id)->value('cost'));
     }
@@ -203,7 +208,69 @@ class PeriodStockTest extends TestCase
         $this->assertSame(40000, PoPeriodIngredient::where('ingredient_id', $milk->id)->value('cost'));
     }
 
-    public function test_prefill_from_previous_period_carries_the_value_of_leftovers(): void
+    public function test_leftover_carries_its_value_and_new_purchase_defaults_to_master_price(): void
+    {
+        $previous = PoPeriod::factory()->create(['name' => 'PO Lalu', 'created_at' => now()->subWeek()]);
+        $milk = $this->ingredient('Susu');
+        $milk->update(['pack_size' => 1000, 'pack_price' => 38000]);
+        PoPeriodIngredient::create([
+            'po_period_id' => $previous->id, 'ingredient_id' => $milk->id, 'stock' => 2000, 'used' => 1500, 'cost' => 40000,
+        ]);
+        $period = PoPeriod::factory()->create();
+
+        // 500 ml left at Rp20 per ml.
+        $this->get("/admin/periods/{$period->id}/stock")
+            ->assertSee('Sisa di PO Lalu: 500 ml, senilai Rp10.000.')
+            ->assertSee('Otomatis: Rp38.000 / 1.000 ml');
+
+        // 200 ml went bad: use 300 ml, buy 1.000 ml, price left blank.
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'carried' => [$milk->id => '300'], 'buy' => [$milk->id => '1.000'], 'buy_cost' => [$milk->id => ''],
+        ])->assertSessionHasNoErrors();
+
+        $row = PoPeriodIngredient::where('po_period_id', $period->id)->first();
+        $this->assertEquals(1300, $row->stock);
+        $this->assertEquals(300, $row->carried);
+        $this->assertSame(6000, $row->carried_cost);   // 300 x Rp20
+        $this->assertSame(44000, $row->cost);          // 6.000 + 1.000 x Rp38
+        $this->assertSame(38000, $row->boughtCost());
+
+        $this->get("/admin/periods/{$period->id}/stock")
+            ->assertSee('200 ml tidak dipakai (basi).')
+            ->assertSee('Total stok: <span data-total>1.300</span> ml', false);
+    }
+
+    public function test_all_spoiled_leftover_is_not_carried(): void
+    {
+        $previous = PoPeriod::factory()->create(['created_at' => now()->subWeek()]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($previous, $milk, 2000, 1500);
+        $period = PoPeriod::factory()->create();
+
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'carried' => [$milk->id => '0'], 'buy' => [$milk->id => '2000'], 'buy_cost' => [$milk->id => '40000'],
+        ])->assertSessionHasNoErrors();
+
+        $row = PoPeriodIngredient::where('po_period_id', $period->id)->first();
+        $this->assertEquals(2000, $row->stock);
+        $this->assertEquals(0, $row->carried);
+        $this->assertSame(40000, $row->cost);
+    }
+
+    public function test_cannot_carry_more_than_was_left(): void
+    {
+        $previous = PoPeriod::factory()->create(['created_at' => now()->subWeek()]);
+        $milk = $this->ingredient('Susu');
+        $this->stock($previous, $milk, 2000, 1500);
+        $period = PoPeriod::factory()->create();
+
+        $this->put("/admin/periods/{$period->id}/stock", ['carried' => [$milk->id => '900'], 'buy' => [$milk->id => '']])
+            ->assertSessionHasErrors(["carried.{$milk->id}" => 'Sisa Susu dari periode lalu cuma 500 ml.']);
+
+        $this->assertDatabaseMissing('po_period_ingredients', ['po_period_id' => $period->id]);
+    }
+
+    public function test_spend_in_reports_counts_only_new_purchases(): void
     {
         $previous = PoPeriod::factory()->create(['created_at' => now()->subWeek()]);
         $milk = $this->ingredient('Susu');
@@ -211,11 +278,14 @@ class PeriodStockTest extends TestCase
             'po_period_id' => $previous->id, 'ingredient_id' => $milk->id, 'stock' => 2000, 'used' => 1500, 'cost' => 40000,
         ]);
         $period = PoPeriod::factory()->create();
+        $this->put("/admin/periods/{$period->id}/stock", [
+            'carried' => [$milk->id => '500'], 'buy' => [$milk->id => '1000'], 'buy_cost' => [$milk->id => '30000'],
+        ]);
 
-        // 500 ml left at Rp20 per ml.
-        $this->get("/admin/periods/{$period->id}/stock?prefill=previous")
-            ->assertSee('value="500"', false)
-            ->assertSee('value="10000"', false);
+        $profit = app(\App\Services\PeriodReport::class)->build($period->fresh())['profit'];
+
+        // The leftover was paid for last period; only the Rp30.000 is new spend.
+        $this->assertSame(30000, $profit['spent']);
     }
 
     public function test_other_costs_are_saved_and_replace_the_old_list(): void

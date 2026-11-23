@@ -37,21 +37,25 @@
                 </div>
             @endif
 
+            @php
+                $rp = fn ($n) => 'Rp'.number_format((int) round($n), 0, ',', '.');
+                $nice = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, ',', '.'), '0'), ',');
+                // Plain digits for [data-number] fields; the page script adds the dots.
+                $plainInt = fn ($v) => ($v === null || $v === '') ? '' : (string) (int) \App\Support\Number::normalize((string) $v);
+                $plainDec = fn ($v) => ($v === null || $v === '') ? '' : $fmt(\App\Support\Number::normalize((string) $v));
+                $field = 'w-full px-3 py-2 border-2 border-brand rounded-brand bg-surface focus:outline-none focus:ring-2 focus:ring-cta';
+            @endphp
             <div class="bg-surface rounded-brand shadow-sm p-5 sm:p-8">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-                    <h2 class="text-xl font-bold text-charcoal">Stok per Bahan</h2>
-                    <a
-                        href="{{ route('admin.periods.stock', ['period' => $period, 'prefill' => 'previous']) }}"
-                        class="text-sm font-semibold text-charcoal underline"
-                    >Isi dari sisa periode lalu</a>
-                </div>
-
-                <p class="mb-4 text-sm text-muted">
-                    Isi harga beli total untuk stok yang kamu masukkan, misalnya 2.000 ml susu seharga Rp40.000. Harganya dipakai untuk menghitung HPP dan untung di halaman Produksi.
+                <h2 class="text-xl font-bold text-charcoal">Stok per Bahan</h2>
+                <p class="mt-1 mb-6 text-sm text-muted">
+                    Stok periode ini = sisa yang masih bagus dari periode lalu + belanja baru.
+                    Harga belanja terisi otomatis dari harga per kemasan di master Bahan, dan tetap bisa kamu ubah.
                 </p>
 
                 @if ($prefilled)
-                    <p class="mb-4 text-sm text-charcoal opacity-75">Terisi dari sisa periode lalu. Belum tersimpan sampai kamu klik Simpan.</p>
+                    <p class="mb-4 rounded-brand bg-sage-soft px-4 py-3 text-sm text-charcoal">
+                        Sisa bahan dari {{ $previous->name }} sudah terisi. Kurangi atau isi 0 untuk bahan yang basi, lalu klik Simpan.
+                    </p>
                 @endif
 
                 @if ($ingredients->isEmpty())
@@ -60,48 +64,74 @@
                     <div class="space-y-4">
                         @foreach ($ingredients as $ingredient)
                             @php
-                                $row = $rows->get($ingredient->id);
-                                $value = $hasOld ? old('stock.'.$ingredient->id) : $values[$ingredient->id];
-                                $value = ($value === null || $value === '') ? '' : $fmt($value);
-                            @endphp
-                            @php
-                                $cost = $hasOld ? old('cost.'.$ingredient->id) : ($costs[$ingredient->id] ?? null);
-                                // Plain digits ("80000"); the page script adds the thousand dots.
-                                $cost = ($cost === null || $cost === '') ? '' : (string) (int) \App\Support\Number::normalize((string) $cost);
+                                $id = $ingredient->id;
+                                $row = $rows->get($id);
+                                $left = $leftovers[$id] ?? null;
+                                $showCarried = $left || ($row && (float) $row->carried > 0);
+                                $carriedValue = $hasOld ? old('carried.'.$id) : $carried[$id];
+                                $buyValue = $hasOld ? old('buy.'.$id) : $bought[$id];
+                                $buyCostValue = $hasOld ? old('buy_cost.'.$id) : $boughtCost[$id];
+                                // A saved purchase of 0 shows as empty, not "0".
+                                if (! $hasOld && $row && (float) $buyValue <= 0) { $buyValue = null; $buyCostValue = null; }
+                                $unitPrice = $ingredient->unitPrice();
                                 $unitCost = $row?->unitCost();
+                                $spoiled = $left ? max(0, $left['amount'] - (float) ($row ? $row->carried : $carriedValue)) : 0;
                             @endphp
-                            <div class="border-2 border-brand rounded-brand p-4 space-y-3">
+                            <div class="border-2 border-brand rounded-brand p-4 space-y-3" data-stock-row data-unit-price="{{ $unitPrice ?? '' }}" data-left="{{ $left['amount'] ?? 0 }}">
                                 <p class="font-semibold text-charcoal">
                                     {{ $ingredient->name }} <span class="font-normal opacity-75">({{ $ingredient->unit }})</span>
                                 </p>
+
+                                @if ($showCarried)
+                                    <div class="rounded-brand bg-oat p-3">
+                                        <div class="flex flex-wrap items-end gap-3">
+                                            <div class="flex-1 min-w-[10rem]">
+                                                <label for="carried_{{ $id }}" class="block text-xs font-semibold text-muted mb-1">
+                                                    Sisa periode lalu yang dipakai ({{ $ingredient->unit }})
+                                                </label>
+                                                <input type="text" inputmode="decimal" data-number id="carried_{{ $id }}" name="carried[{{ $id }}]"
+                                                       value="{{ $plainDec($carriedValue) }}" data-carried
+                                                       class="{{ $field }} @error('carried.'.$id) border-red-500 @enderror" />
+                                            </div>
+                                            @if ($left)
+                                                <button type="button" data-spoil class="px-3 py-2 rounded-full border border-cta text-xs font-semibold text-amber-text hover:bg-amber-soft">Basi semua</button>
+                                            @endif
+                                        </div>
+                                        <p class="mt-2 text-xs text-muted">
+                                            @if ($left)
+                                                Sisa di {{ $previous->name }}: {{ $nice($left['amount']) }} {{ $ingredient->unit }}{{ $left['unit'] !== null ? ', senilai '.$rp($left['amount'] * $left['unit']) : '' }}.
+                                                @if ($spoiled > 0.001)
+                                                    <span class="font-semibold text-amber-text">{{ $nice($spoiled) }} {{ $ingredient->unit }} tidak dipakai (basi).</span>
+                                                @endif
+                                            @else
+                                                Sisa dari periode lalu yang sudah tersimpan.
+                                            @endif
+                                        </p>
+                                    </div>
+                                @endif
+
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label for="stock_{{ $ingredient->id }}" class="block text-xs font-semibold text-muted mb-1">Stok ({{ $ingredient->unit }})</label>
-                                        <input
-                                            type="text" inputmode="decimal" data-number
-                                            id="stock_{{ $ingredient->id }}"
-                                            name="stock[{{ $ingredient->id }}]"
-                                            value="{{ $value }}"
-                                            class="w-full px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('stock.'.$ingredient->id) border-red-500 @enderror"
-                                        />
+                                        <label for="buy_{{ $id }}" class="block text-xs font-semibold text-muted mb-1">Belanja baru ({{ $ingredient->unit }})</label>
+                                        <input type="text" inputmode="decimal" data-number id="buy_{{ $id }}" name="buy[{{ $id }}]"
+                                               value="{{ $plainDec($buyValue) }}" data-buy
+                                               class="{{ $field }} @error('buy.'.$id) border-red-500 @enderror" />
                                     </div>
                                     <div>
-                                        <label for="cost_{{ $ingredient->id }}" class="block text-xs font-semibold text-muted mb-1">Harga beli total (Rp)</label>
-                                        <input
-                                            type="text" inputmode="numeric" data-number="int"
-                                            id="cost_{{ $ingredient->id }}"
-                                            name="cost[{{ $ingredient->id }}]"
-                                            value="{{ $cost }}"
-                                            placeholder="Untuk seluruh stok ini"
-                                            class="w-full px-3 py-2 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('cost.'.$ingredient->id) border-red-500 @enderror"
-                                        />
+                                        <label for="buy_cost_{{ $id }}" class="block text-xs font-semibold text-muted mb-1">Harga belanja baru (Rp)</label>
+                                        <input type="text" inputmode="numeric" data-number="int" id="buy_cost_{{ $id }}" name="buy_cost[{{ $id }}]"
+                                               value="{{ $plainInt($buyCostValue) }}" data-buy-cost
+                                               placeholder="{{ $unitPrice !== null ? 'Otomatis: '.$rp($ingredient->pack_price).' / '.$nice($ingredient->pack_size).' '.$ingredient->unit : 'Total harga belanjanya' }}"
+                                               class="{{ $field }} @error('buy_cost.'.$id) border-red-500 @enderror" />
                                     </div>
                                 </div>
+
                                 <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm text-charcoal">
-                                    <span>Terpakai: {{ $fmt($row?->used ?? 0) }} {{ $ingredient->unit }}</span>
-                                    <span>Sisa: {{ $fmt($row?->remaining() ?? 0) }} {{ $ingredient->unit }}</span>
+                                    <span class="font-semibold">Total stok: <span data-total>{{ $nice($row?->stock ?? 0) }}</span> {{ $ingredient->unit }}</span>
+                                    <span>Terpakai: {{ $nice($row?->used ?? 0) }} {{ $ingredient->unit }}</span>
+                                    <span>Sisa: {{ $nice($row?->remaining() ?? 0) }} {{ $ingredient->unit }}</span>
                                     @if ($unitCost !== null)
-                                        <span class="text-muted">Rp{{ rtrim(rtrim(number_format($unitCost, 2, ',', '.'), '0'), ',') }} per {{ $ingredient->unit }}</span>
+                                        <span class="text-muted">Rp{{ $nice($unitCost) }} per {{ $ingredient->unit }}</span>
                                     @endif
                                 </div>
                             </div>
@@ -109,6 +139,36 @@
                     </div>
                 @endif
             </div>
+
+            <script>
+                // Stock rows: live total, "Basi semua", and the purchase price from
+                // the master price until it is typed by hand.
+                (() => {
+                    const plain = (v) => Number(String(v || '').replace(/\./g, '').replace(',', '.')) || 0;
+                    const show = (n) => (Math.round(n * 100) / 100).toLocaleString('id-ID');
+                    document.querySelectorAll('[data-stock-row]').forEach((row) => {
+                        const carried = row.querySelector('[data-carried]');
+                        const buy = row.querySelector('[data-buy]');
+                        const cost = row.querySelector('[data-buy-cost]');
+                        const total = row.querySelector('[data-total]');
+                        const unitPrice = Number(row.dataset.unitPrice) || 0;
+                        let costByHand = cost.value !== '';
+
+                        const update = () => {
+                            total.textContent = show(plain(carried?.value) + plain(buy.value));
+                            if (!costByHand && unitPrice > 0) {
+                                const amount = plain(buy.value);
+                                cost.value = amount > 0 ? Math.round(amount * unitPrice).toLocaleString('id-ID') : '';
+                            }
+                        };
+                        cost.addEventListener('input', () => { costByHand = cost.value !== ''; });
+                        carried?.addEventListener('input', update);
+                        buy.addEventListener('input', update);
+                        row.querySelector('[data-spoil]')?.addEventListener('click', () => { carried.value = '0'; update(); });
+                        update();
+                    });
+                })();
+            </script>
 
             @php
                 $lines = $hasOld ? array_values(old('extra', [])) : $costLines;

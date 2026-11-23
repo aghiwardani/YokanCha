@@ -44,15 +44,15 @@
         </div>
         <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
-                <label for="new_ingredient_pack_size" class="mb-1 block text-xs font-bold text-muted">Isi per kemasan (opsional)</label>
+                <label for="new_ingredient_pack_size" class="mb-1 block text-xs font-bold text-muted">Isi sekali beli (opsional)</label>
                 <input type="text" inputmode="decimal" data-number id="new_ingredient_pack_size" name="pack_size" placeholder="1.000" value="{{ $ingredientAddOld('pack_size') }}" class="{{ $field }}" />
             </div>
             <div>
-                <label for="new_ingredient_pack_price" class="mb-1 block text-xs font-bold text-muted">Harga per kemasan (Rp, opsional)</label>
+                <label for="new_ingredient_pack_price" class="mb-1 block text-xs font-bold text-muted">Harga sekali beli (Rp, opsional)</label>
                 <input type="text" inputmode="numeric" data-number="int" id="new_ingredient_pack_price" name="pack_price" placeholder="38.000" value="{{ $ingredientAddOld('pack_price') }}" class="{{ $field }}" />
             </div>
         </div>
-        <p class="mt-2 text-xs text-muted">Contoh: Oatside 1.000 ml seharga Rp38.000. Dipakai untuk mengisi harga beli di stok periode.</p>
+        <p class="mt-2 text-xs text-muted">Contoh: Oatside 1 kemasan 1.000 ml seharga Rp38.000. Jadi harga default belanja baru di setiap periode, dan masih bisa diubah di periodenya.</p>
     </form>
 
     <div class="overflow-hidden rounded-brand border border-line bg-surface">
@@ -139,11 +139,11 @@
                                 </div>
                                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                     <div>
-                                        <label for="ingredient_pack_size_{{ $ingredient->id }}" class="mb-1 block text-xs font-bold text-muted">Isi per kemasan ({{ $ingredient->unit }})</label>
+                                        <label for="ingredient_pack_size_{{ $ingredient->id }}" class="mb-1 block text-xs font-bold text-muted">Isi sekali beli ({{ $ingredient->unit }})</label>
                                         <input type="text" inputmode="decimal" data-number id="ingredient_pack_size_{{ $ingredient->id }}" name="pack_size" placeholder="1.000" value="{{ $failed ? old('pack_size') : ($ingredient->pack_size === null ? '' : rtrim(rtrim(number_format((float) $ingredient->pack_size, 2, '.', ''), '0'), '.')) }}" class="{{ $field }}" />
                                     </div>
                                     <div>
-                                        <label for="ingredient_pack_price_{{ $ingredient->id }}" class="mb-1 block text-xs font-bold text-muted">Harga per kemasan (Rp)</label>
+                                        <label for="ingredient_pack_price_{{ $ingredient->id }}" class="mb-1 block text-xs font-bold text-muted">Harga sekali beli (Rp)</label>
                                         <input type="text" inputmode="numeric" data-number="int" id="ingredient_pack_price_{{ $ingredient->id }}" name="pack_price" placeholder="38.000" value="{{ $failed ? old('pack_price') : $ingredient->pack_price }}" class="{{ $field }}" />
                                     </div>
                                 </div>

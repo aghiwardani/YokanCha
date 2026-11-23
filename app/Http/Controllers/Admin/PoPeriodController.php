@@ -79,47 +79,48 @@ class PoPeriodController extends Controller
     {
         $ingredients = Ingredient::orderBy('name')->get();
         $rows = $period->ingredientStocks()->get()->keyBy('ingredient_id');
+        $previous = $this->previousPeriod($period);
+        $leftovers = $this->leftovers($previous);
 
-        $values = [];
-        $costs = [];
+        // Per ingredient: leftover from the previous period that is used (default
+        // all of it; set lower or to 0 when some went bad), and the new purchase.
+        $carried = [];
+        $bought = [];
+        $boughtCost = [];
         foreach ($ingredients as $ingredient) {
             $row = $rows->get($ingredient->id);
-            $values[$ingredient->id] = $row ? $row->stock : null;
-            $costs[$ingredient->id] = $row?->cost;
+            if ($row) {
+                $carried[$ingredient->id] = (float) $row->carried;
+                $bought[$ingredient->id] = $row->bought();
+                $boughtCost[$ingredient->id] = $row->boughtCost();
+            } else {
+                $carried[$ingredient->id] = $leftovers[$ingredient->id]['amount'] ?? null;
+                $bought[$ingredient->id] = null;
+                $boughtCost[$ingredient->id] = null;
+            }
         }
 
         $costLines = $period->costs()->get()
             ->map(fn (PoPeriodCost $c) => $c->only(['name', 'type', 'size', 'amount']))->all();
 
-        $prefilled = $request->query('prefill') === 'previous';
-        if ($prefilled) {
-            $previous = PoPeriod::whereKeyNot($period->getKey())
-                ->orderByDesc('created_at')->orderByDesc('id')->first();
-
-            if ($previous) {
-                if ($costLines === []) {
-                    $costLines = $previous->costs()->get()
-                        ->map(fn (PoPeriodCost $c) => $c->only(['name', 'type', 'size', 'amount']))->all();
-                }
-
-                foreach ($previous->ingredientStocks()->get() as $prev) {
-                    if (array_key_exists($prev->ingredient_id, $values)) {
-                        $left = max(0, $prev->remaining());
-                        $values[$prev->ingredient_id] = $left;
-                        // Leftovers carry their share of what they cost last time.
-                        $unit = $prev->unitCost();
-                        $costs[$prev->ingredient_id] = $unit === null ? null : (int) round($left * $unit);
-                    }
-                }
-            }
+        // A period that was never saved starts from the previous period's leftovers
+        // and other costs (shown in the form, saved only on Simpan).
+        $prefilled = false;
+        if ($previous && $rows->isEmpty() && $costLines === []) {
+            $costLines = $previous->costs()->get()
+                ->map(fn (PoPeriodCost $c) => $c->only(['name', 'type', 'size', 'amount']))->all();
+            $prefilled = $costLines !== [] || $leftovers !== [];
         }
 
         return view('admin.periods.stock', [
             'period' => $period,
+            'previous' => $previous,
+            'leftovers' => $leftovers,
             'ingredients' => $ingredients,
             'rows' => $rows,
-            'values' => $values,
-            'costs' => $costs,
+            'carried' => $carried,
+            'bought' => $bought,
+            'boughtCost' => $boughtCost,
             'costLines' => $costLines,
             'sizes' => Size::smallestFirst()->pluck('name')->all(),
             'prefilled' => $prefilled,
@@ -128,19 +129,50 @@ class PoPeriodController extends Controller
         ]);
     }
 
+    /**
+     * The period created just before this one: its leftovers can move over.
+     */
+    private function previousPeriod(PoPeriod $period): ?PoPeriod
+    {
+        return PoPeriod::whereKeyNot($period->getKey())
+            ->where(fn ($q) => $q->where('created_at', '<', $period->created_at)
+                ->orWhere(fn ($q) => $q->where('created_at', $period->created_at)->where('id', '<', $period->id)))
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @return array<int,array{amount:float, unit:?float}> ingredient_id => what is left and its value per unit
+     */
+    private function leftovers(?PoPeriod $previous): array
+    {
+        if (! $previous) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($previous->ingredientStocks()->get() as $row) {
+            $left = round(max(0, $row->remaining()), 2);
+            if ($left > 0) {
+                $result[$row->ingredient_id] = ['amount' => $left, 'unit' => $row->unitCost()];
+            }
+        }
+
+        return $result;
+    }
+
     public function updateStock(Request $request, PoPeriod $period): RedirectResponse
     {
-        // Stock may arrive typed the Indonesian way ("2.000", "2,5").
-        if ($request->has('stock')) {
-            $request->merge(['stock' => Number::normalizeAll($request->input('stock'))]);
+        // Amounts may arrive typed the Indonesian way ("2.000", "2,5").
+        foreach (['stock', 'cost', 'carried', 'buy', 'buy_cost'] as $field) {
+            if ($request->has($field)) {
+                $request->merge([$field => Number::normalizeAll($request->input($field))]);
+            }
         }
         if ($request->has('extra')) {
             $request->merge(['extra' => collect($request->input('extra'))
                 ->map(fn ($line) => is_array($line) ? ['amount' => Number::normalize($line['amount'] ?? null)] + $line : $line)
                 ->all()]);
-        }
-        if ($request->has('cost')) {
-            $request->merge(['cost' => Number::normalizeAll($request->input('cost'))]);
         }
 
         $request->validate([
@@ -148,6 +180,12 @@ class PoPeriodController extends Controller
             'stock.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'cost' => ['nullable', 'array'],
             'cost.*' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'carried' => ['nullable', 'array'],
+            'carried.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'buy' => ['nullable', 'array'],
+            'buy.*' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'buy_cost' => ['nullable', 'array'],
+            'buy_cost.*' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
             'extra' => ['nullable', 'array'],
             'extra.*.name' => ['nullable', 'string', 'max:100'],
             'extra.*.type' => ['nullable', 'in:'.PoPeriodCost::PER_BOTTLE.','.PoPeriodCost::PER_BATCH],
@@ -187,10 +225,9 @@ class PoPeriodController extends Controller
             throw ValidationException::withMessages($extraErrors);
         }
 
-        $input = $request->input('stock', []);
-        $costInput = $request->input('cost', []);
+        $plan = $this->stockPlan($request, $period);
 
-        DB::transaction(function () use ($request, $period, $input, $costInput, $extra) {
+        DB::transaction(function () use ($request, $period, $plan, $extra) {
             // The form always sends the whole list, so it replaces what was saved.
             if ($request->boolean('extra_sent')) {
                 $period->costs()->delete();
@@ -201,49 +238,48 @@ class PoPeriodController extends Controller
 
             $existing = PoPeriodIngredient::where('po_period_id', $period->id)
                 ->orderBy('id')->lockForUpdate()->get()->keyBy('ingredient_id');
-            $ingredients = Ingredient::whereIn('id', array_keys($input))->get()->keyBy('id');
+            $ingredients = Ingredient::whereIn('id', array_keys($plan))->get()->keyBy('id');
 
-            // A blank input counts as 0, so it is rejected too when stock is already used.
+            // Stock can't go below what orders already use (a blank row counts as 0).
             $errors = [];
             foreach ($ingredients as $ingredient) {
                 $row = $existing->get($ingredient->id);
-                $raw = $input[$ingredient->id] ?? null;
-                $value = ($raw === null || $raw === '') ? 0.0 : (float) $raw;
-
-                if ($row && (float) $row->used > 0 && $value < (float) $row->used) {
-                    $used = (float) $row->used;
-                    $errors["stock.{$ingredient->id}"] = "Stok {$ingredient->name} tidak boleh di bawah yang sudah terpakai ({$used} {$ingredient->unit}).";
+                $line = $plan[$ingredient->id];
+                if ($row && (float) $row->used > 0 && $line['stock'] < (float) $row->used) {
+                    $used = rtrim(rtrim(number_format((float) $row->used, 2, ',', '.'), '0'), ',');
+                    $errors[$line['field']] = "Stok {$ingredient->name} tidak boleh di bawah yang sudah terpakai ({$used} {$ingredient->unit}).";
+                }
+                if ($line['carriedTooMuch']) {
+                    $errors["carried.{$ingredient->id}"] = "Sisa {$ingredient->name} dari periode lalu cuma {$line['carriedMax']} {$ingredient->unit}.";
                 }
             }
-
             if ($errors) {
                 throw ValidationException::withMessages($errors);
             }
 
             foreach ($ingredients as $ingredient) {
                 $row = $existing->get($ingredient->id);
-                $raw = $input[$ingredient->id] ?? null;
+                $line = $plan[$ingredient->id];
 
-                if ($raw === null || $raw === '') {
+                if ($line['blank']) {
                     $row?->delete();
                     continue;
                 }
 
-                // A form without the price field leaves the saved price alone.
-                $rawCost = $costInput[$ingredient->id] ?? null;
-                $cost = array_key_exists($ingredient->id, $costInput)
-                    ? (($rawCost === null || $rawCost === '') ? null : (int) $rawCost)
-                    : $row?->cost;
+                $values = [
+                    'stock' => $line['stock'],
+                    'carried' => $line['carried'],
+                    'carried_cost' => $line['carriedCost'],
+                    'cost' => $line['cost'] === false ? $row?->cost : $line['cost'],
+                ];
 
                 if ($row) {
-                    $row->update(['stock' => $raw, 'cost' => $cost]);
+                    $row->update($values);
                 } else {
-                    PoPeriodIngredient::create([
+                    PoPeriodIngredient::create($values + [
                         'po_period_id' => $period->id,
                         'ingredient_id' => $ingredient->id,
-                        'stock' => $raw,
                         'used' => 0,
-                        'cost' => $cost,
                     ]);
                 }
             }
@@ -258,5 +294,91 @@ class PoPeriodController extends Controller
         });
 
         return redirect()->route('admin.periods.stock', $period)->with('status', 'Stok bahan disimpan.');
+    }
+
+    /**
+     * Turn the stock form into what to save per ingredient.
+     *
+     * Form: carried[id] (leftover used) + buy[id] (newly bought) and
+     * buy_cost[id] (its price; blank = master price x amount). The older
+     * single stock[id] / cost[id] fields still work and count as "all bought".
+     * 'cost' => false means "leave the saved price alone".
+     *
+     * @return array<int,array{stock:float, carried:float, carriedCost:int, cost:int|null|false, blank:bool, field:string, carriedTooMuch:bool, carriedMax:string}>
+     */
+    private function stockPlan(Request $request, PoPeriod $period): array
+    {
+        $carriedIn = (array) $request->input('carried', []);
+        $buyIn = (array) $request->input('buy', []);
+        $buyCostIn = (array) $request->input('buy_cost', []);
+        $stockIn = (array) $request->input('stock', []);
+        $costIn = (array) $request->input('cost', []);
+
+        $ids = array_values(array_unique(array_map('intval', array_merge(
+            array_keys($carriedIn), array_keys($buyIn), array_keys($stockIn),
+        ))));
+        if ($ids === []) {
+            return [];
+        }
+
+        $leftovers = $this->leftovers($this->previousPeriod($period));
+        $saved = PoPeriodIngredient::where('po_period_id', $period->id)->get()->keyBy('ingredient_id');
+        $masters = Ingredient::whereIn('id', $ids)->get()->keyBy('id');
+        $filled = fn ($v) => $v !== null && $v !== '';
+        $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, ',', '.'), '0'), ',');
+
+        $plan = [];
+        foreach ($ids as $id) {
+            if (! $masters->has($id)) {
+                continue;
+            }
+            $row = $saved->get($id);
+
+            if (array_key_exists($id, $stockIn) && ! array_key_exists($id, $buyIn)) {
+                $raw = $stockIn[$id];
+                $plan[$id] = [
+                    'stock' => $filled($raw) ? (float) $raw : 0.0,
+                    'carried' => 0.0,
+                    'carriedCost' => 0,
+                    'cost' => array_key_exists($id, $costIn) ? ($filled($costIn[$id]) ? (int) $costIn[$id] : null) : false,
+                    'blank' => ! $filled($raw),
+                    'field' => "stock.{$id}",
+                    'carriedTooMuch' => false,
+                    'carriedMax' => '0',
+                ];
+                continue;
+            }
+
+            $carried = $filled($carriedIn[$id] ?? null) ? round((float) $carriedIn[$id], 2) : 0.0;
+            $buy = $filled($buyIn[$id] ?? null) ? round((float) $buyIn[$id], 2) : 0.0;
+
+            // At most what the previous period has left (or what was saved before).
+            $max = max($leftovers[$id]['amount'] ?? 0, (float) ($row?->carried ?? 0));
+
+            // Leftovers keep last period's value per unit.
+            $prevUnit = $leftovers[$id]['unit']
+                ?? ($row && (float) $row->carried > 0 ? $row->carried_cost / (float) $row->carried : null);
+            $carriedCost = $carried > 0 && $prevUnit !== null ? (int) round($carried * $prevUnit) : 0;
+            $carriedKnown = $carried <= 0 || $prevUnit !== null;
+
+            // New purchase price: as typed, else master price x amount.
+            $typed = $buyCostIn[$id] ?? null;
+            $unitPrice = $masters[$id]->unitPrice();
+            $buyCost = $filled($typed) ? (int) $typed
+                : ($buy <= 0 ? 0 : ($unitPrice !== null ? (int) round($buy * $unitPrice) : null));
+
+            $plan[$id] = [
+                'stock' => round($carried + $buy, 2),
+                'carried' => $carried,
+                'carriedCost' => $carriedCost,
+                'cost' => $carriedKnown && $buyCost !== null ? $carriedCost + $buyCost : null,
+                'blank' => ! $filled($carriedIn[$id] ?? null) && ! $filled($buyIn[$id] ?? null),
+                'field' => "buy.{$id}",
+                'carriedTooMuch' => $carried > $max + 0.001,
+                'carriedMax' => $fmt($max),
+            ];
+        }
+
+        return $plan;
     }
 }
