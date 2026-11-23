@@ -113,6 +113,12 @@
                                 >
                                     Produksi
                                 </a>
+                                <a
+                                    href="{{ route('admin.reports.show', $period) }}"
+                                    class="px-4 py-2 border-2 border-brand text-charcoal font-semibold rounded-brand hover:bg-oat transition duration-200"
+                                >
+                                    Laporan
+                                </a>
                                 @if ($period->status !== 'open')
                                     <form action="{{ route('admin.periods.open', $period) }}" method="POST">
                                         @csrf

@@ -5,6 +5,7 @@
         ['label' => 'Periode PO', 'route' => 'admin.periods', 'active' => ['admin.periods*']],
         ['label' => 'Master Data', 'route' => 'admin.master', 'active' => ['admin.master', 'admin.products*']],
         ['label' => 'Pesanan', 'route' => 'admin.orders', 'active' => ['admin.orders*']],
+        ['label' => 'Laporan', 'route' => 'admin.reports', 'active' => ['admin.reports*']],
         ['label' => 'Pengaturan', 'route' => 'admin.settings', 'active' => ['admin.settings*']],
     ];
 @endphp

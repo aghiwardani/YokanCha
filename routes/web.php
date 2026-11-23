@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductionController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SizeController;
 use App\Http\Controllers\Admin\SweetnessLevelController;
@@ -94,4 +95,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [SettingsController::class, 'show'])->name('settings');
     Route::put('/settings/shop', [SettingsController::class, 'updateShop'])->name('settings.shop');
     Route::put('/settings/account', [SettingsController::class, 'updateAccount'])->name('settings.account');
+
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+    Route::get('/reports/export.csv', [ReportController::class, 'csv'])->name('reports.csv');
+    Route::get('/reports/{period}', [ReportController::class, 'show'])->name('reports.show');
 });
