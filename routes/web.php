@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductionController;
+use App\Http\Controllers\Admin\RecipeExportController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SizeController;
@@ -99,4 +100,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     Route::get('/reports/export.csv', [ReportController::class, 'csv'])->name('reports.csv');
     Route::get('/reports/{period}', [ReportController::class, 'show'])->name('reports.show');
+
+    Route::get('/recipes.pdf', RecipeExportController::class)->name('recipes.pdf');
 });

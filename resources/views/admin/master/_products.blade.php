@@ -7,13 +7,24 @@
         <p class="max-w-xl text-sm leading-6 text-muted">
             Menu yang bisa dijual. Harga per ukuran, tingkat manis, dan resepnya diatur di halaman tiap produk.
         </p>
-        <a
-            href="{{ route('admin.products.create') }}"
-            class="inline-flex items-center gap-2 rounded-brand bg-cta px-4 py-2.5 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cta focus-visible:ring-offset-2"
-        >
-            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z"/></svg>
-            Tambah produk
-        </a>
+        <div class="flex flex-wrap gap-2">
+            @if ($products->isNotEmpty())
+                <a
+                    href="{{ route('admin.recipes.pdf') }}"
+                    class="inline-flex items-center gap-2 rounded-brand border border-brand bg-surface px-4 py-2.5 text-sm font-bold text-brand transition hover:bg-sage-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                >
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 3a1 1 0 0 1 1 1v7.6l2.3-2.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L9 11.6V4a1 1 0 0 1 1-1ZM4 15a1 1 0 0 1 1 1h10a1 1 0 1 1 2 0 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 1 1 0 0 1 1-1Z"/></svg>
+                    Export PDF resep
+                </a>
+            @endif
+            <a
+                href="{{ route('admin.products.create') }}"
+                class="inline-flex items-center gap-2 rounded-brand bg-cta px-4 py-2.5 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cta focus-visible:ring-offset-2"
+            >
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z"/></svg>
+                Tambah produk
+            </a>
+        </div>
     </div>
 
     <div class="overflow-hidden rounded-brand border border-line bg-surface">
