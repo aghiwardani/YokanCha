@@ -191,10 +191,6 @@ class CheckoutController extends Controller
 
     private function generateOrderNumber(int $poPeriodId): string
     {
-        do {
-            $candidate = sprintf('YC-%d-%s', $poPeriodId, Str::upper(Str::random(6)));
-        } while (Order::where('order_number', $candidate)->exists());
-
-        return $candidate;
+        return Order::newNumber($poPeriodId);
     }
 }

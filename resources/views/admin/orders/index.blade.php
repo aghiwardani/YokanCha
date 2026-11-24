@@ -31,7 +31,13 @@
     <div class="max-w-5xl mx-auto space-y-6" data-orders-root>
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-charcoal">Pesanan</h1>
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="text-3xl font-bold text-charcoal">Pesanan</h1>
+                    @if ($periods->isNotEmpty())
+                        <a href="{{ route('admin.orders.create', array_filter(['period' => $selectedPeriodId])) }}"
+                           class="rounded-full bg-cta px-4 py-2 text-sm font-semibold text-surface hover:bg-opacity-90">+ Tambah pesanan</a>
+                    @endif
+                </div>
                 <p class="mt-1 text-sm text-muted">
                     {{ $selectedPeriodId ? optional($periods->firstWhere('id', (int) $selectedPeriodId))->name : 'Semua periode' }}
                 </p>
@@ -160,6 +166,9 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                                     <span class="font-mono font-semibold text-charcoal">{{ $order->order_number }}</span>
+                                    @if ($order->source === 'admin')
+                                        <span class="rounded-full bg-oat-deep px-2 py-0.5 font-semibold text-charcoal" title="Ditambahkan lewat admin">Manual</span>
+                                    @endif
                                     <span>{{ $order->created_at?->timezone(config('app.timezone'))->translatedFormat('j M, H.i') }}</span>
                                     @unless ($selectedPeriodId)
                                         <span>{{ optional($order->poPeriod)->name }}</span>

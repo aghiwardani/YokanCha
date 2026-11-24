@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\IngredientController;
+use App\Http\Controllers\Admin\ManualOrderController;
 use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PoPeriodController;
@@ -87,6 +88,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/sweetness/{level}', [SweetnessLevelController::class, 'destroy'])->name('sweetness.destroy');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
+    Route::get('/orders/create', [ManualOrderController::class, 'create'])->name('orders.create');
+    Route::post('/orders', [ManualOrderController::class, 'store'])->name('orders.store');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid');
     Route::post('/orders/{order}/mark-unpaid', [OrderController::class, 'markUnpaid'])->name('orders.mark-unpaid');

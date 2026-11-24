@@ -141,9 +141,11 @@ class StockService
      *
      * @return array<int,array<int,float>> line index => (ingredient_id => usage)
      */
-    public function reserve(int $poPeriodId, array $lines): array
+    public function reserve(int $poPeriodId, array $lines, bool $allowShort = false): array
     {
-        return DB::transaction(function () use ($poPeriodId, $lines) {
+        // $allowShort: an order the admin enters by hand may go over the stock
+        // (the bottles are already made); "used" then simply ends up above stock.
+        return DB::transaction(function () use ($poPeriodId, $lines, $allowShort) {
             $rows = PoPeriodIngredient::query()
                 ->where('po_period_id', $poPeriodId)
                 ->orderBy('id')
@@ -155,13 +157,14 @@ class StockService
             $running = []; // ingredient_id => hundredths
             foreach ($lines as $index => $line) {
                 $usage = $this->lineUsage($line);
-                if ($usage === []) {
+                if ($usage === [] && ! $allowShort) {
                     throw new InsufficientStockException($line['po_period_product']->product->name);
                 }
                 foreach ($usage as $ingredientId => $amount) {
                     $running[$ingredientId] = ($running[$ingredientId] ?? 0) + $this->hundredths($amount);
                     $row = $rows->get($ingredientId);
-                    if ($row === null || $running[$ingredientId] > $this->hundredths($row->remaining())) {
+                    $short = $row === null || $running[$ingredientId] > $this->hundredths($row->remaining());
+                    if ($short && ! $allowShort) {
                         throw new InsufficientStockException($line['po_period_product']->product->name);
                     }
                 }
@@ -169,7 +172,10 @@ class StockService
             }
 
             foreach ($running as $ingredientId => $hundredths) {
-                $row = $rows->get($ingredientId);
+                // Over-stock admin orders may use an ingredient the period has no row for.
+                $row = $rows->get($ingredientId) ?? PoPeriodIngredient::create([
+                    'po_period_id' => $poPeriodId, 'ingredient_id' => $ingredientId, 'stock' => 0, 'used' => 0,
+                ]);
                 $row->used = ($this->hundredths($row->used) + $hundredths) / 100;
                 $row->save();
             }
