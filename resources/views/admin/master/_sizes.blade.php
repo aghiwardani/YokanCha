@@ -7,6 +7,14 @@
     <p class="mb-4 max-w-xl text-sm leading-6 text-muted">
         Ukuran botol yang bisa dipilih di tiap produk. Isi dalam ml dipakai untuk mengurutkan ukuran dari yang terkecil dan untuk menghitung resep ukuran baru secara otomatis.
     </p>
+    <p class="mb-4 max-w-xl text-sm leading-6 text-muted">
+        @if ($sizes->contains(fn ($s) => $s->extra_matcha_price > 0) && ! \App\Models\Ingredient::where('is_matcha', true)->exists())
+            <span class="mb-3 block rounded-chip border-2 border-amber-400 bg-amber-50 px-3 py-2 text-charcoal">
+                Extra matcha belum tampil di menu: belum ada bahan yang dicentang <strong>Ini matcha</strong>. Centang di tab <a href="{{ route('admin.master') }}#bahan" class="font-semibold underline">Bahan</a> supaya gram tambahannya terpotong dari stok.
+            </span>
+        @endif
+        <span class="font-bold text-charcoal">Extra matcha:</span> isi harga tambahan per botol di ukuran yang bisa extra matcha. Kosongkan kalau tidak. Matcha tambahan diisi dalam persen dari takaran matcha di resep ukuran itu, misalnya 50 berarti resep 3 g jadi 4,5 g. Air (bahan bertanda <span class="font-semibold">Ini air</span>) ikut naik dengan persen yang sama, dan susu (<span class="font-semibold">Ini susu</span>) dikurangi sebanyak air yang ditambahkan, jadi isi botol tetap sama. Tandai bahannya di tab Bahan.
+    </p>
 
     <form action="{{ route('admin.sizes.store') }}" method="POST" class="mb-4 rounded-brand border border-line bg-surface p-4">
         @csrf
@@ -21,7 +29,7 @@
             </ul>
         @endif
 
-        <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
+        <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_8rem_auto] sm:items-end">
             <div>
                 <label for="new_size_name" class="mb-1 block text-xs font-bold text-muted">Nama ukuran</label>
                 <input type="text" id="new_size_name" name="name" placeholder="Contoh: 2 liter" value="{{ $sizeAddOld('name') }}" class="{{ $field }}" />
@@ -29,6 +37,14 @@
             <div>
                 <label for="new_size_volume" class="mb-1 block text-xs font-bold text-muted">Isi (ml)</label>
                 <input type="text" inputmode="numeric" data-number="int" id="new_size_volume" name="volume_ml" min="1" placeholder="2000" value="{{ $sizeAddOld('volume_ml') }}" class="{{ $field }}" />
+            </div>
+            <div>
+                <label for="new_size_extra_price" class="mb-1 block text-xs font-bold text-muted">Harga extra matcha</label>
+                <input type="text" inputmode="numeric" data-number="int" id="new_size_extra_price" name="extra_matcha_price" placeholder="Kosong = tidak ada" value="{{ $sizeAddOld('extra_matcha_price') }}" class="{{ $field }}" />
+            </div>
+            <div>
+                <label for="new_size_extra_percent" class="mb-1 block text-xs font-bold text-muted">Matcha tambahan (%)</label>
+                <input type="text" inputmode="numeric" data-number="int" id="new_size_extra_percent" name="extra_matcha_percent" placeholder="50" value="{{ $sizeAddOld('extra_matcha_percent') }}" class="{{ $field }}" />
             </div>
             <button type="submit" class="rounded-brand bg-cta px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cta focus-visible:ring-offset-2">
                 Tambah ukuran
@@ -43,9 +59,10 @@
                 <p class="mt-1 text-sm text-muted">Tambahkan ukuran botol di atas supaya bisa dicentang di produk.</p>
             </div>
         @else
-            <div class="hidden grid-cols-[minmax(0,2fr)_7rem_minmax(0,2fr)_5rem] gap-4 border-b border-line bg-oat px-5 py-2.5 text-xs font-bold text-muted sm:grid">
+            <div class="hidden grid-cols-[minmax(0,2fr)_7rem_minmax(0,2fr)_minmax(0,2fr)_5rem] gap-4 border-b border-line bg-oat px-5 py-2.5 text-xs font-bold text-muted sm:grid">
                 <span>Ukuran</span>
                 <span>Isi</span>
+                <span>Extra matcha</span>
                 <span>Dipakai di</span>
                 <span></span>
             </div>
@@ -56,13 +73,23 @@
                         $productCount = $sizeInfo[$size->id]['products'];
                     @endphp
                     <details class="group" @if ($failed) open @endif>
-                        <summary class="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-5 py-3.5 transition hover:bg-oat focus:outline-none focus-visible:bg-oat sm:grid-cols-[minmax(0,2fr)_7rem_minmax(0,2fr)_5rem] sm:items-center [&::-webkit-details-marker]:hidden">
+                        <summary class="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-5 py-3.5 transition hover:bg-oat focus:outline-none focus-visible:bg-oat sm:grid-cols-[minmax(0,2fr)_7rem_minmax(0,2fr)_minmax(0,2fr)_5rem] sm:items-center [&::-webkit-details-marker]:hidden">
                             <span class="truncate font-bold text-charcoal">{{ $size->name }}</span>
                             <span class="col-start-1 text-sm text-muted sm:col-start-auto">{{ $size->volume_ml > 0 ? number_format($size->volume_ml, 0, ',', '.').' ml' : 'Belum diisi' }}</span>
+                            <span class="col-start-1 text-sm sm:col-start-auto {{ $size->extra_matcha_price > 0 ? 'text-charcoal' : 'text-muted' }}">
+                                @if ($size->extra_matcha_price > 0)
+                                    +Rp{{ number_format($size->extra_matcha_price, 0, ',', '.') }}
+                                    @if ($size->extra_matcha_percent > 0)
+                                        <span class="text-muted">· +{{ $size->extra_matcha_percent }}% matcha</span>
+                                    @endif
+                                @else
+                                    Tidak ada extra
+                                @endif
+                            </span>
                             <span class="col-start-1 text-sm sm:col-start-auto {{ $productCount ? 'text-charcoal' : 'text-muted' }}">
                                 {{ $productCount ? "{$productCount} produk" : 'Belum dipakai' }}
                             </span>
-                            <span class="col-start-2 row-span-3 row-start-1 flex items-center justify-end gap-1 text-sm font-bold text-brand sm:col-start-auto sm:row-span-1 sm:row-start-auto">
+                            <span class="col-start-2 row-span-4 row-start-1 flex items-center justify-end gap-1 text-sm font-bold text-brand sm:col-start-auto sm:row-span-1 sm:row-start-auto">
                                 <span class="group-open:hidden">Ubah</span>
                                 <span class="hidden group-open:inline">Tutup</span>
                                 <svg class="h-4 w-4 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.2 7.2a.75.75 0 0 1 1.06 0L10 10.94l3.74-3.74a.75.75 0 1 1 1.06 1.06l-4.27 4.27a.75.75 0 0 1-1.06 0L5.2 8.26a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
@@ -83,7 +110,7 @@
                                     </ul>
                                 @endif
 
-                                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
+                                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_8rem_auto] sm:items-end">
                                     <div>
                                         <label for="size_name_{{ $size->id }}" class="mb-1 block text-xs font-bold text-muted">Nama ukuran</label>
                                         <input
@@ -98,6 +125,14 @@
                                     <div>
                                         <label for="size_volume_{{ $size->id }}" class="mb-1 block text-xs font-bold text-muted">Isi (ml)</label>
                                         <input type="text" inputmode="numeric" data-number="int" id="size_volume_{{ $size->id }}" name="volume_ml" min="1" value="{{ $failed ? old('volume_ml') : $size->volume_ml }}" class="{{ $field }}" />
+                                    </div>
+                                    <div>
+                                        <label for="size_extra_price_{{ $size->id }}" class="mb-1 block text-xs font-bold text-muted">Harga extra matcha</label>
+                                        <input type="text" inputmode="numeric" data-number="int" id="size_extra_price_{{ $size->id }}" name="extra_matcha_price" placeholder="Kosong = tidak ada" value="{{ $failed ? old('extra_matcha_price') : ($size->extra_matcha_price ?: '') }}" class="{{ $field }}" />
+                                    </div>
+                                    <div>
+                                        <label for="size_extra_percent_{{ $size->id }}" class="mb-1 block text-xs font-bold text-muted">Matcha tambahan (%)</label>
+                                        <input type="text" inputmode="numeric" data-number="int" id="size_extra_percent_{{ $size->id }}" name="extra_matcha_percent" placeholder="50" value="{{ $failed ? old('extra_matcha_percent') : ($size->extra_matcha_percent ?: '') }}" class="{{ $field }}" />
                                     </div>
                                     <button type="submit" class="rounded-brand bg-brand px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
                                         Simpan perubahan

@@ -32,6 +32,9 @@ class OrderLookupController extends Controller
             $order = null;
         }
 
+        view()->share('ycTheme', \App\Models\Product::themeFor($order ? $order->items->pluck('product') : []));
+        view()->share('ycSwitchable', false);
+
         return view('orders.lookup', [
             'order' => $order,
             'searched' => true,

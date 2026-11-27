@@ -79,7 +79,7 @@
                             <div class="flex items-start justify-between gap-4 border-t border-line py-3">
                                 <div>
                                     <p class="font-bold text-charcoal">{{ $item->product->name }}</p>
-                                    <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }}</p>
+                                    <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }}{{ $item->extra_matcha ? ' · Extra matcha' : '' }}</p>
                                 </div>
                                 <div class="text-right">
                                     <p class="font-bold text-charcoal">{{ $item->qty }} botol</p>

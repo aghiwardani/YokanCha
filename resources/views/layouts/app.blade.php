@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="id" @class(['yc-scaled' => ! request()->routeIs('admin.*')])>
+@php $ycTheme = $ycTheme ?? 'matcha'; @endphp
+<html lang="id" @class(['yc-scaled' => ! request()->routeIs('admin.*')]) data-theme="{{ $ycTheme }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,7 +13,7 @@
         <link rel="icon" href="{{ asset('favicon-32.png') }}" type="image/png" sizes="32x32">
         <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
         <link rel="manifest" href="{{ asset('site.webmanifest') }}">
-        <meta name="theme-color" content="#4A6B4F">
+        <meta name="theme-color" content="{{ ['coffee' => '#5C3A26', 'blend' => '#53523A'][$ycTheme] ?? '#4A6B4F' }}">
 
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

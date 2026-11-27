@@ -96,6 +96,9 @@
                 ['title' => 'Penjualan per menu', 'head' => 'Menu', 'rows' => $byProduct, 'money' => true],
                 ['title' => 'Per ukuran', 'head' => 'Ukuran', 'rows' => $bySize, 'money' => true],
                 ['title' => 'Per tingkat manis', 'head' => 'Manis', 'rows' => $bySweetness, 'money' => false],
+                ...(collect($byExtra)->contains('label', 'Extra matcha')
+                    ? [['title' => 'Extra matcha', 'head' => 'Pilihan', 'rows' => $byExtra, 'money' => true]]
+                    : []),
             ] as $table)
                 <section class="bg-surface rounded-brand border border-line overflow-hidden break-inside-avoid">
                     <h2 class="px-5 pt-4 text-lg font-bold text-charcoal">{{ $table['title'] }}</h2>

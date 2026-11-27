@@ -182,7 +182,7 @@ class ProductController extends Controller
         };
 
         $validated = $request->validate([
-            'category' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'in:'.implode(',', array_keys(Product::CATEGORIES))],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'base_price' => ['required', 'integer', 'min:0'],
@@ -214,7 +214,7 @@ class ProductController extends Controller
         [$sizes, $sizePrices] = $this->tickedSizes($validated['sizes'] ?? [], $existing);
 
         return [
-            'category' => $validated['category'] ?? 'minuman',
+            'category' => $validated['category'] ?? $existing?->categoryKey() ?? 'matcha',
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'base_price' => $validated['base_price'],
@@ -225,6 +225,10 @@ class ProductController extends Controller
             'tone' => $validated['tone'] ?? null,
             'bottle_style' => $validated['bottle_style'] ?? null,
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
+            // The form always sends it (hidden 0 + checkbox 1); other posts keep what was there.
+            'allow_extra_matcha' => $request->has('allow_extra_matcha')
+                ? $request->boolean('allow_extra_matcha')
+                : ($existing?->allow_extra_matcha ?? true),
         ];
     }
 

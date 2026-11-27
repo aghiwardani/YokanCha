@@ -17,6 +17,20 @@ class StockService
     /** @var array<string, int>|null sweetness name => percent, loaded once per service */
     private ?array $sweetnessPercents = null;
 
+    /** @var array<string, int>|null size name => extra matcha percent, loaded once per service */
+    private ?array $extraPercents = null;
+
+    /**
+     * Extra matcha for this size as a percent of the recipe's matcha (50 = +50%).
+     */
+    public function extraMatchaPercent(string $size): int
+    {
+        $this->extraPercents ??= \App\Models\Size::where('extra_matcha_price', '>', 0)
+            ->pluck('extra_matcha_percent', 'name')->map(fn ($percent) => (int) $percent)->all();
+
+        return $this->extraPercents[$size] ?? 0;
+    }
+
     /**
      * Percent of the Normal sugar amount used at this sweetness level.
      */
@@ -29,11 +43,13 @@ class StockService
 
     /**
      * Amount of each ingredient in one bottle. Recipes hold the Normal amount;
-     * sugar ingredients are scaled by the sweetness level's percent.
+     * sugar ingredients are scaled by the sweetness level's percent. Extra
+     * matcha raises matcha and water by the size's percent (e.g. +50%), and
+     * takes the water added off the milk so the bottle holds the same amount.
      *
      * @return array<int,float> ingredient_id => amount per bottle (empty = no recipe)
      */
-    public function perBottle(Product $product, string $size, string $sweetness): array
+    public function perBottle(Product $product, string $size, string $sweetness, bool $extraMatcha = false): array
     {
         $percent = $this->sugarPercent($sweetness);
         $result = [];
@@ -52,6 +68,40 @@ class StockService
             // "Tanpa gula" needs none of that sweetener at all.
             if ($amount > 0) {
                 $result[$recipe->ingredient_id] = $amount;
+            }
+        }
+
+        $extraPercent = $extraMatcha ? $this->extraMatchaPercent($size) : 0;
+        if ($extraPercent > 0) {
+            $waterAdded = 0.0;
+            $milk = [];
+            foreach ($recipes as $recipe) {
+                $id = $recipe->ingredient_id;
+                if (! isset($result[$id]) || ! $recipe->ingredient) {
+                    continue;
+                }
+                if ($recipe->ingredient->is_matcha || $recipe->ingredient->is_water) {
+                    $more = round($result[$id] * $extraPercent / 100, 2);
+                    $result[$id] = round($result[$id] + $more, 2);
+                    if ($recipe->ingredient->is_water && ! $recipe->ingredient->is_matcha) {
+                        $waterAdded += $more;
+                    }
+                } elseif ($recipe->ingredient->is_milk) {
+                    $milk[$id] = $result[$id];
+                }
+            }
+
+            // Several milks share the cut by their share of the milk.
+            $milkTotal = array_sum($milk);
+            if ($waterAdded > 0 && $milkTotal > 0) {
+                foreach ($milk as $id => $amount) {
+                    $left = round($amount - $waterAdded * $amount / $milkTotal, 2);
+                    if ($left > 0) {
+                        $result[$id] = $left;
+                    } else {
+                        unset($result[$id]);
+                    }
+                }
             }
         }
 
@@ -76,9 +126,9 @@ class StockService
     /**
      * @param array<int,float> $alreadyNeeded ingredient_id => amount
      */
-    public function available(PoPeriodProduct $ppp, string $size, string $sweetness, array $alreadyNeeded = []): int
+    public function available(PoPeriodProduct $ppp, string $size, string $sweetness, array $alreadyNeeded = [], bool $extraMatcha = false): int
     {
-        $perBottle = $this->perBottle($ppp->product, $size, $sweetness);
+        $perBottle = $this->perBottle($ppp->product, $size, $sweetness, $extraMatcha);
         if ($perBottle === []) {
             return 0;
         }
@@ -217,7 +267,7 @@ class StockService
     /** @return array<int,float> */
     private function lineUsage(array $line): array
     {
-        $per = $this->perBottle($line['po_period_product']->product, $line['size'], $line['sweetness']);
+        $per = $this->perBottle($line['po_period_product']->product, $line['size'], $line['sweetness'], (bool) ($line['extra'] ?? false));
         $usage = [];
         foreach ($per as $ingredientId => $amount) {
             $usage[$ingredientId] = $this->hundredths($amount) * (int) $line['qty'] / 100;

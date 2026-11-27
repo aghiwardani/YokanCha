@@ -1,10 +1,38 @@
 import './bootstrap';
 
-// Menu cards: when a size chip changes, update the shown price and the bottle label.
+const rupiah = (amount) => `Rp${Math.round(amount).toLocaleString('id-ID')}`;
+
+// Menu cards: the shown price is the chosen size's price, plus the size's
+// Extra matcha price when that is ticked (sizes without it untick it).
+function syncExtra(card, extraLeft = null) {
+    const size = card.querySelector('input[name="size"]:checked');
+    const toggle = card.querySelector('[data-extra-toggle]');
+    const price = card.querySelector('[data-price-display]');
+    const extraPrice = Number(size?.dataset.extra || 0);
+
+    if (toggle) {
+        const sub = card.querySelector('[data-extra-sub]');
+        const soldOut = extraPrice > 0 && extraLeft !== null && extraLeft <= 0;
+        toggle.disabled = extraPrice <= 0 || soldOut;
+        if (toggle.disabled) {
+            toggle.checked = false;
+        }
+        if (sub) {
+            sub.textContent = extraPrice <= 0 ? 'Tidak ada' : (soldOut ? 'Habis' : `+${rupiah(extraPrice)}`);
+        }
+    }
+
+    if (price && size?.dataset.base !== undefined) {
+        price.textContent = rupiah(Number(size.dataset.base) + (toggle?.checked ? extraPrice : 0));
+    } else if (price && size?.dataset.price) {
+        price.textContent = size.dataset.price;
+    }
+}
+
 document.addEventListener('change', (event) => {
     const input = event.target;
 
-    if (!(input instanceof HTMLInputElement) || input.name !== 'size') {
+    if (!(input instanceof HTMLInputElement) || (input.name !== 'size' && input.name !== 'extra_matcha')) {
         return;
     }
 
@@ -14,15 +42,181 @@ document.addEventListener('change', (event) => {
         return;
     }
 
-    const price = card.querySelector('[data-price-display]');
-
-    if (price && input.dataset.price) {
-        price.textContent = input.dataset.price;
+    // Order cards are handled by syncCard (it knows the stock left).
+    if (card.matches('[data-catalog-card]')) {
+        syncExtra(card);
     }
 
-    card.querySelectorAll('[data-bottle-size]').forEach((label) => {
-        label.textContent = input.value;
+    if (input.name === 'size') {
+        card.querySelectorAll('[data-bottle-size]').forEach((label) => {
+            label.textContent = input.value;
+        });
+    }
+});
+
+// Menu tabs (Matcha / Coffee): switch the cards in place. The tab is kept in
+// the address (?kategori=coffee) so a refresh or a shared link opens it too.
+document.addEventListener('click', (event) => {
+    const tab = event.target.closest('[data-menu-tab]');
+
+    if (!tab || event.metaKey || event.ctrlKey || event.shiftKey) {
+        return;
+    }
+
+    event.preventDefault();
+    const name = tab.dataset.menuTab;
+
+    document.querySelectorAll('[data-menu-tab]').forEach((other) => {
+        other.setAttribute('aria-selected', other === tab ? 'true' : 'false');
+        other.tabIndex = other === tab ? 0 : -1;
     });
+    document.querySelectorAll('[data-menu-panel]').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.menuPanel !== name);
+    });
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('kategori', name);
+    window.history.replaceState(null, '', url.pathname + url.search + '#menu');
+
+    setMenuTheme(name === 'coffee' ? 'coffee' : 'matcha');
+});
+
+// Matcha green <-> coffee brown. The colors fade slowly while leaves fall
+// across the screen, turning from the old color to the new one.
+const THEME_COLORS = {
+    matcha: { brand: '#4A6B4F', leaves: ['#6E9A5E', '#4A6B4F', '#8FB07A'] },
+    coffee: { brand: '#5C3A26', leaves: ['#7A4B2E', '#5C3A26', '#A0673F'] },
+};
+const LEAF_PATH = 'M12 1.5C6.5 5 3.6 10.4 5.2 17.6c.3 1.3.9 2.6 1.7 3.6 1-4.8 3.4-9.6 7-13.2-2.9 3.9-4.6 8.3-5.3 13.4 6.9.5 11.7-5.2 11.9-12.7.1-2.6-.3-5.1-1.1-7.3-2.2.1-4.8-.3-7.4-1.9Z';
+
+
+// Theme the menu is heading to (a switch takes a moment), and a counter so a
+// quick second click cancels the steps of the first one.
+let targetTheme = document.documentElement.dataset.theme || 'matcha';
+let switchId = 0;
+const MASCOT_OUT_MS = 450;
+
+const mascotsOf = (theme) => [...document.querySelectorAll(theme === 'coffee' ? 'img.yc-mascot-coffee' : 'img.yc-mascot-matcha')];
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function setMenuTheme(theme) {
+    const root = document.documentElement;
+
+    if (targetTheme === theme) {
+        return;
+    }
+
+    // What is on screen now (a cut-short switch may not have turned yet).
+    const from = root.dataset.theme || 'matcha';
+    targetTheme = theme;
+    const id = ++switchId;
+    const meta = document.querySelector('meta[name="theme-color"]');
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        root.dataset.theme = theme;
+        meta?.setAttribute('content', THEME_COLORS[theme].brand);
+        return;
+    }
+
+    // Leftovers of a switch that was cut short.
+    document.querySelectorAll('img.yc-mascot-leave, img.yc-mascot-enter, img.yc-mascot-swap')
+        .forEach((img) => img.classList.remove('yc-mascot-leave', 'yc-mascot-enter', 'yc-mascot-swap'));
+
+    root.classList.add('yc-theme-shift');
+    dropLeaves(THEME_COLORS[from].leaves, THEME_COLORS[theme].leaves);
+
+    // 1. The current Yoka melts away while the first leaves come down.
+    const outgoing = mascotsOf(from);
+    outgoing.forEach((img) => img.classList.add('yc-mascot-leave'));
+    await wait(MASCOT_OUT_MS);
+    if (id !== switchId) {
+        return;
+    }
+
+    // 2. Colors start turning, and the other Yoka drifts in from the same blur.
+    const incoming = mascotsOf(theme);
+    incoming.forEach((img) => img.classList.add('yc-mascot-swap', 'yc-mascot-enter'));
+    root.dataset.theme = theme;
+    meta?.setAttribute('content', THEME_COLORS[theme].brand);
+    outgoing.forEach((img) => img.classList.remove('yc-mascot-leave'));
+
+    await nextFrame(); // start state painted before it animates
+    if (id !== switchId) {
+        return;
+    }
+    incoming.forEach((img) => img.classList.remove('yc-mascot-enter'));
+
+    // 3. Tidy up once everything has settled.
+    await wait(1900);
+    if (id !== switchId) {
+        return;
+    }
+    incoming.forEach((img) => img.classList.remove('yc-mascot-swap'));
+    root.classList.remove('yc-theme-shift');
+}
+
+// Fetch the other theme's mascots once the page is idle, so the swap doesn't
+// wait for the download.
+window.addEventListener('load', () => {
+    const warm = () => document.querySelectorAll('img.yc-mascot-coffee[loading="lazy"], img.yc-mascot-matcha[loading="lazy"]')
+        .forEach((img) => { img.loading = 'eager'; });
+    (window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500)))(warm);
+});
+
+function dropLeaves(fromColors, toColors) {
+    document.querySelector('.yc-leaves')?.remove();
+
+    const layer = document.createElement('div');
+    layer.className = 'yc-leaves';
+    layer.setAttribute('aria-hidden', 'true');
+
+    const count = window.innerWidth < 640 ? 22 : 38;
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    let longest = 0;
+
+    for (let i = 0; i < count; i += 1) {
+        const fall = 2.6 + Math.random() * 2;
+        const delay = Math.random() * 1.1;
+        longest = Math.max(longest, fall + delay);
+
+        const leaf = document.createElement('span');
+        leaf.className = 'yc-leaf';
+        leaf.style.cssText = [
+            `--x:${Math.random() * 100}vw`,
+            `--size:${16 + Math.random() * 22}px`,
+            `--fall:${fall}s`,
+            `--delay:${delay}s`,
+            `--sway:${20 + Math.random() * 50}px`,
+            `--sway-time:${0.9 + Math.random() * 0.9}s`,
+            `--spin:${25 + Math.random() * 70}deg`,
+            `--from:${pick(fromColors)}`,
+            `--to:${pick(toColors)}`,
+        ].join(';');
+        leaf.innerHTML = `<span><svg viewBox="0 0 24 24" fill="currentColor"><path d="${LEAF_PATH}"/></svg></span>`;
+        layer.appendChild(leaf);
+    }
+
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), (longest + 0.3) * 1000);
+}
+
+// Arrow keys move between tabs, like a native tab list.
+document.addEventListener('keydown', (event) => {
+    const tab = event.target.closest?.('[data-menu-tab]');
+
+    if (!tab || !['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        return;
+    }
+
+    const tabs = [...document.querySelectorAll('[data-menu-tab]')];
+    const next = tabs[(tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+    next.focus();
+    next.click();
+});
+
+document.querySelectorAll('[data-menu-tab]').forEach((tab) => {
+    tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
 });
 
 // Toast shown after adding to the cart (state: idle | ok | error).
@@ -76,8 +270,10 @@ const DISABLED_BUTTON = 'yc-btn cursor-not-allowed border-charcoal/30 bg-charcoa
 
 function syncCard(card) {
     let cells;
+    let extraCells;
     try {
         cells = JSON.parse(card.dataset.cells || '{}');
+        extraCells = JSON.parse(card.dataset.extraCells || '{}');
     } catch {
         return;
     }
@@ -114,7 +310,12 @@ function syncCard(card) {
     }
     const sweetName = sweet ? sweet.value : (sweetInputs.length ? null : '-');
 
-    const left = sizeName !== null && sweetName !== null ? Math.min(cell(sizeName, sweetName), limit) : 0;
+    // Extra matcha uses more matcha, so it can run out before the plain bottle.
+    const extraLeft = sizeName !== null && sweetName !== null ? Number(extraCells?.[sizeName]?.[sweetName] ?? 0) : 0;
+    syncExtra(card, extraLeft);
+    const withExtra = card.querySelector('[data-extra-toggle]')?.checked;
+    const stockLeft = sizeName !== null && sweetName !== null ? (withExtra ? extraLeft : cell(sizeName, sweetName)) : 0;
+    const left = Math.min(stockLeft, limit);
     const anyStock = Object.values(cells).some((row) => Object.values(row).some((n) => Number(n) > 0));
 
     const qty = card.querySelector('[data-qty]');
@@ -141,7 +342,7 @@ function syncCard(card) {
 document.addEventListener('change', (event) => {
     const input = event.target;
     // Only real clicks; syncCard itself fires a change when it moves the size.
-    if (event.isTrusted && input instanceof HTMLInputElement && (input.name === 'size' || input.name === 'sweetness')) {
+    if (event.isTrusted && input instanceof HTMLInputElement && ['size', 'sweetness', 'extra_matcha'].includes(input.name)) {
         const card = input.closest('[data-product-card]');
         if (card) {
             syncCard(card);
@@ -159,6 +360,7 @@ function applyAvailability(availability) {
             return;
         }
         card.dataset.cells = JSON.stringify(stats.cells ?? {});
+        card.dataset.extraCells = JSON.stringify(stats.extraCells ?? {});
         card.dataset.limit = String(stats.limit ?? 0);
         syncCard(card);
     });

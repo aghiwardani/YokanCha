@@ -53,7 +53,7 @@
                             <div>
                                 <p class="font-semibold text-charcoal">{{ optional($item->product)->name }}</p>
                                 <p class="text-xs text-charcoal opacity-60">
-                                    {{ $item->size }} / {{ $item->sweetness }} &mdash; Qty: {{ $item->qty }}
+                                    {{ $item->size }} / {{ $item->sweetness }}{{ $item->extra_matcha ? ' / Extra matcha' : '' }} &mdash; Qty: {{ $item->qty }}
                                 </p>
                             </div>
                             <p class="font-semibold text-charcoal">

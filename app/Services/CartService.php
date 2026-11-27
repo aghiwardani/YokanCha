@@ -8,11 +8,11 @@ class CartService
 {
     private const SESSION_KEY = 'cart';
 
-    public function add(int $poPeriodProductId, int $qty, string $size, string $sweetness): void
+    public function add(int $poPeriodProductId, int $qty, string $size, string $sweetness, bool $extra = false): void
     {
         $cart = session(self::SESSION_KEY, []);
 
-        $lineKey = $this->lineKey($poPeriodProductId, $size, $sweetness);
+        $lineKey = self::lineKey($poPeriodProductId, $size, $sweetness, $extra);
 
         if (isset($cart[$lineKey])) {
             $cart[$lineKey]['qty'] += $qty;
@@ -22,6 +22,7 @@ class CartService
                 'qty' => $qty,
                 'size' => $size,
                 'sweetness' => $sweetness,
+                'extra' => $extra,
             ];
         }
 
@@ -41,7 +42,9 @@ class CartService
                 continue;
             }
 
-            $unitPrice = $poPeriodProduct->product->priceFor($line['size']);
+            $extra = (bool) ($line['extra'] ?? false);
+            $unitPrice = $poPeriodProduct->product->priceFor($line['size'])
+                + ($extra ? $poPeriodProduct->product->extraMatchaPrice($line['size']) : 0);
 
             $lines[] = [
                 'line_key' => $lineKey,
@@ -50,6 +53,7 @@ class CartService
                 'qty' => $line['qty'],
                 'size' => $line['size'],
                 'sweetness' => $line['sweetness'],
+                'extra' => $extra,
                 'unit_price' => $unitPrice,
                 'line_total' => $unitPrice * $line['qty'],
             ];
@@ -135,8 +139,8 @@ class CartService
         session()->forget(self::SESSION_KEY);
     }
 
-    private function lineKey(int $poPeriodProductId, string $size, string $sweetness): string
+    public static function lineKey(int $poPeriodProductId, string $size, string $sweetness, bool $extra = false): string
     {
-        return "{$poPeriodProductId}|{$size}|{$sweetness}";
+        return "{$poPeriodProductId}|{$size}|{$sweetness}".($extra ? '|extra' : '');
     }
 }

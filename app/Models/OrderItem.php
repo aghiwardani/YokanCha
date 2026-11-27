@@ -16,6 +16,7 @@ class OrderItem extends Model
         'product_id',
         'size',
         'sweetness',
+        'extra_matcha',
         'qty',
         'unit_price',
     ];
@@ -23,7 +24,18 @@ class OrderItem extends Model
     protected $casts = [
         'qty' => 'integer',
         'unit_price' => 'integer',
+        'extra_matcha' => 'boolean',
     ];
+
+    /**
+     * "250 ml, Less Sugar, Extra matcha" (options of products without them are "-" and left out).
+     */
+    public function variantLabel(): string
+    {
+        return collect([$this->size, $this->sweetness, $this->extra_matcha ? 'Extra matcha' : null])
+            ->filter(fn ($value) => $value && $value !== '-')
+            ->implode(', ');
+    }
 
     public function order(): BelongsTo
     {

@@ -14,6 +14,49 @@ class Product extends Model
 
     public const BOTTLE_STYLES = ['klasik', 'maple', 'oat', 'murni', 'strawberry'];
 
+    /** Menu tabs, in the order they show on the menu. */
+    public const CATEGORIES = ['matcha' => 'Matcha', 'coffee' => 'Coffee'];
+
+    protected static function booted(): void
+    {
+        // Anything outside the known tabs (e.g. the old "minuman") is matcha.
+        static::saving(function (Product $product) {
+            if (! array_key_exists((string) $product->category, self::CATEGORIES)) {
+                $product->category = 'matcha';
+            }
+        });
+    }
+
+    /**
+     * The menu tab this product shows under.
+     */
+    public function categoryKey(): string
+    {
+        return array_key_exists((string) $this->category, self::CATEGORIES) ? $this->category : 'matcha';
+    }
+
+    public function categoryLabel(): string
+    {
+        return self::CATEGORIES[$this->categoryKey()];
+    }
+
+    /**
+     * Page theme for what someone is ordering: "matcha", "coffee", or
+     * "blend" (both, shown as a green-to-brown gradient). Empty = matcha.
+     *
+     * @param  iterable<Product|null>  $products
+     */
+    public static function themeFor(iterable $products): string
+    {
+        $kinds = collect($products)->filter()->map(fn (Product $product) => $product->categoryKey())->unique();
+
+        return match (true) {
+            $kinds->contains('matcha') && $kinds->contains('coffee') => 'blend',
+            $kinds->contains('coffee') => 'coffee',
+            default => 'matcha',
+        };
+    }
+
     protected $fillable = [
         'category',
         'name',
@@ -28,10 +71,12 @@ class Product extends Model
         'bottle_style',
         'sort_order',
         'is_active',
+        'allow_extra_matcha',
     ];
 
     protected $attributes = [
         'is_active' => true,
+        'allow_extra_matcha' => true,
     ];
 
     protected $casts = [
@@ -41,7 +86,44 @@ class Product extends Model
         'sweetness_options' => 'array',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
+        'allow_extra_matcha' => 'boolean',
     ];
+
+    /**
+     * Extra matcha price per size of this product (size => price), only sizes
+     * that offer it; empty when the product doesn't allow Extra matcha.
+     *
+     * @return array<string,int>
+     */
+    public function extraMatchaPrices(): array
+    {
+        if (! $this->allow_extra_matcha) {
+            return [];
+        }
+
+        $prices = Size::extraMatchaPrices(array_map('strval', array_values($this->size_options ?? [])));
+        if ($prices === []) {
+            return [];
+        }
+
+        // The extra is a percent of the recipe's matcha, so a size whose recipe
+        // has no ingredient marked "Ini matcha" can't offer it.
+        $withMatcha = ProductRecipe::where('product_id', $this->id)
+            ->whereIn('size', array_keys($prices))
+            ->where('amount', '>', 0)
+            ->whereHas('ingredient', fn ($query) => $query->where('is_matcha', true))
+            ->distinct()->pluck('size')->all();
+
+        return array_intersect_key($prices, array_flip($withMatcha));
+    }
+
+    /**
+     * Price added per bottle for Extra matcha in this size; 0 = not offered.
+     */
+    public function extraMatchaPrice(?string $size): int
+    {
+        return $size === null ? 0 : ($this->extraMatchaPrices()[$size] ?? 0);
+    }
 
     public function poPeriodProducts(): HasMany
     {

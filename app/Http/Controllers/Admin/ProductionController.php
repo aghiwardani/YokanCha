@@ -45,7 +45,7 @@ class ProductionController extends Controller
             foreach ($orders as $order) {
                 foreach ($order->items as $item) {
                     $perBottle = $item->product
-                        ? $this->stock->perBottle($item->product, (string) $item->size, (string) $item->sweetness)
+                        ? $this->stock->perBottle($item->product, (string) $item->size, (string) $item->sweetness, (bool) $item->extra_matcha)
                         : [];
 
                     if ($perBottle === []) {

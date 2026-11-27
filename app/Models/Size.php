@@ -15,11 +15,43 @@ class Size extends Model
     protected $fillable = [
         'name',
         'volume_ml',
+        'extra_matcha_price',
+        'extra_matcha_percent',
     ];
 
     protected $casts = [
         'volume_ml' => 'integer',
+        'extra_matcha_price' => 'integer',
+        'extra_matcha_percent' => 'integer',
     ];
+
+    /**
+     * Price added per bottle for "Extra matcha" in this size; 0 = not offered.
+     */
+    public static function extraMatchaPrice(?string $name): int
+    {
+        if ($name === null || $name === '' || $name === '-') {
+            return 0;
+        }
+
+        return static::extraMatchaPrices([$name])[$name] ?? 0;
+    }
+
+    /**
+     * Extra matcha price per size name, only sizes that offer it.
+     *
+     * @param  array<int,string>  $names
+     * @return array<string,int>
+     */
+    public static function extraMatchaPrices(array $names): array
+    {
+        if ($names === []) {
+            return [];
+        }
+
+        return static::whereIn('name', $names)->where('extra_matcha_price', '>', 0)
+            ->pluck('extra_matcha_price', 'name')->map(fn ($price) => (int) $price)->all();
+    }
 
     // Sizes with an unknown volume (0) go last.
     public function scopeSmallestFirst(Builder $query): Builder

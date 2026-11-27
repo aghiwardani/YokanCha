@@ -68,13 +68,13 @@
 
                     <section class="bg-surface rounded-brand border border-line p-5 space-y-3">
                         <h2 class="text-lg font-bold text-charcoal">Menu</h2>
-                        <p class="text-xs text-muted">Harga terisi otomatis sesuai ukuran. Ubah kalau ada potongan harga, isi 0 kalau gratis. Baris kosong tidak disimpan.</p>
+                        <p class="text-xs text-muted">Harga terisi otomatis sesuai ukuran (plus extra matcha kalau dicentang). Ubah kalau ada potongan harga, isi 0 kalau gratis. Baris kosong tidak disimpan.</p>
 
                         <div class="space-y-3" data-lines>
                             @for ($i = 0; $i < $rowCount; $i++)
                                 @php $old = $oldLines[$i] ?? []; @endphp
                                 <div class="grid grid-cols-2 gap-2 rounded-brand border border-line p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_7rem]" data-line
-                                     data-old-size="{{ $old['size'] ?? '' }}" data-old-sweetness="{{ $old['sweetness'] ?? '' }}" data-old-price="{{ $old['price'] ?? '' }}">
+                                     data-old-size="{{ $old['size'] ?? '' }}" data-old-sweetness="{{ $old['sweetness'] ?? '' }}" data-old-price="{{ $old['price'] ?? '' }}" data-old-extra="{{ ! empty($old['extra']) ? '1' : '' }}">
                                     <div class="col-span-2 sm:col-span-1">
                                         <label class="{{ $label }}">Menu</label>
                                         <select name="lines[{{ $i }}][ppp]" class="{{ $field }}" data-ppp>
@@ -100,6 +100,10 @@
                                         <label class="{{ $label }}">Harga/botol</label>
                                         <input name="lines[{{ $i }}][price]" type="text" inputmode="numeric" data-number="int" class="{{ $field }}" data-price>
                                     </div>
+                                    <label class="col-span-2 hidden items-center gap-2 text-sm text-charcoal sm:col-span-5" data-extra-wrap>
+                                        <input type="checkbox" name="lines[{{ $i }}][extra]" value="1" class="h-4 w-4 rounded border-line text-brand" data-extra>
+                                        <span>Extra matcha <span class="text-muted" data-extra-price></span></span>
+                                    </label>
                                 </div>
                             @endfor
                         </div>
@@ -168,8 +172,24 @@
                             const item = menu[line.querySelector('[data-ppp]').value];
                             const price = line.querySelector('[data-price]');
                             if (!item || price.dataset.byHand === '1') return;
-                            const value = item.sizes[line.querySelector('[data-size]').value];
-                            price.value = value === undefined ? '' : Number(value).toLocaleString('id-ID');
+                            const size = line.querySelector('[data-size]').value;
+                            const value = item.sizes[size];
+                            const extra = line.querySelector('[data-extra]');
+                            const add = extra.checked ? Number(item.extras[size] || 0) : 0;
+                            price.value = value === undefined ? '' : (Number(value) + add).toLocaleString('id-ID');
+                        };
+
+                        // The Extra matcha box only shows for sizes that offer it.
+                        const setExtra = (line) => {
+                            const item = menu[line.querySelector('[data-ppp]').value];
+                            const wrap = line.querySelector('[data-extra-wrap]');
+                            const extra = line.querySelector('[data-extra]');
+                            const add = item ? item.extras[line.querySelector('[data-size]').value] : undefined;
+                            const offered = add !== undefined && Number(add) > 0;
+                            wrap.classList.toggle('hidden', !offered);
+                            wrap.classList.toggle('flex', offered);
+                            if (!offered) extra.checked = false;
+                            line.querySelector('[data-extra-price]').textContent = offered ? '(+' + rupiah(add) + '/botol)' : '';
                         };
 
                         const setup = (line, first) => {
@@ -180,11 +200,14 @@
                             if (!item) {
                                 size.innerHTML = ''; sweet.innerHTML = '';
                                 if (!first) { price.value = ''; price.dataset.byHand = ''; }
+                                setExtra(line);
                                 total();
                                 return;
                             }
                             fill(size, Object.keys(item.sizes), first ? line.dataset.oldSize : size.value);
                             fill(sweet, item.sweetness, first ? line.dataset.oldSweetness : (sweet.value || (item.sweetness.includes('Normal') ? 'Normal' : '')));
+                            if (first) line.querySelector('[data-extra]').checked = line.dataset.oldExtra === '1';
+                            setExtra(line);
                             if (first && line.dataset.oldPrice !== '') {
                                 price.value = Number(line.dataset.oldPrice).toLocaleString('id-ID');
                                 price.dataset.byHand = '1';
@@ -199,7 +222,8 @@
                             const line = e.target.closest('[data-line]');
                             if (!line) return;
                             if (e.target.matches('[data-ppp]')) { line.querySelector('[data-price]').dataset.byHand = ''; setup(line, false); }
-                            if (e.target.matches('[data-size]')) { setPrice(line); total(); }
+                            if (e.target.matches('[data-size]')) { setExtra(line); setPrice(line); total(); }
+                            if (e.target.matches('[data-extra]')) { setPrice(line); total(); }
                         });
                         list.addEventListener('input', (e) => {
                             if (e.target.matches('[data-price]')) e.target.dataset.byHand = e.target.value === '' ? '' : '1';
@@ -213,7 +237,8 @@
                             copy.querySelectorAll('[name]').forEach((el) => { el.name = el.name.replace(/lines\[\d+\]/, `lines[${index}]`); });
                             copy.querySelector('[data-ppp]').value = '';
                             copy.querySelector('[data-qty]').value = '';
-                            copy.dataset.oldSize = copy.dataset.oldSweetness = copy.dataset.oldPrice = '';
+                            copy.querySelector('[data-extra]').checked = false;
+                            copy.dataset.oldSize = copy.dataset.oldSweetness = copy.dataset.oldPrice = copy.dataset.oldExtra = '';
                             list.appendChild(copy);
                             setup(copy, false);
                         });

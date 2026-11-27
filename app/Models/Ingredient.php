@@ -13,12 +13,18 @@ class Ingredient extends Model
         'name',
         'unit',
         'is_sugar',
+        'is_matcha',
+        'is_water',
+        'is_milk',
         'pack_size',
         'pack_price',
     ];
 
     protected $casts = [
         'is_sugar' => 'boolean',
+        'is_matcha' => 'boolean',
+        'is_water' => 'boolean',
+        'is_milk' => 'boolean',
         'pack_size' => 'decimal:2',
         'pack_price' => 'integer',
     ];

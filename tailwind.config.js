@@ -20,18 +20,20 @@ export default {
             },
             colors: {
                 // Moku palette (60 : 30 : 10).
-                brand: '#4A6B4F', // Matcha Sage
+                // Themed tokens are CSS variables (RGB channels, see app.css)
+                // so the menu can turn from matcha green to coffee brown.
+                brand: 'rgb(var(--yc-brand) / <alpha-value>)', // Matcha Sage / Dark Roast
                 cta: '#C2783B', // Roasted Maple Amber
-                oat: '#F8F6F0', // Warm Oat Milk
+                oat: 'rgb(var(--yc-oat) / <alpha-value>)', // Warm Oat Milk
                 surface: '#FFFFFF', // Pure White Cream
-                charcoal: '#222521', // Deep Roast Charcoal
+                charcoal: 'rgb(var(--yc-charcoal) / <alpha-value>)', // Deep Roast Charcoal
                 // Supporting tokens from the Figma variables.
-                'sage-soft': '#E1E9DE',
+                'sage-soft': 'rgb(var(--yc-sage-soft) / <alpha-value>)',
                 'amber-soft': '#F4E1CE',
                 'amber-text': '#9A5A25',
-                'oat-deep': '#EFEADC',
-                muted: '#5B5F56',
-                line: '#E2DDCF',
+                'oat-deep': 'rgb(var(--yc-oat-deep) / <alpha-value>)',
+                muted: 'rgb(var(--yc-muted) / <alpha-value>)',
+                line: 'rgb(var(--yc-line) / <alpha-value>)',
             },
             borderRadius: {
                 brand: '16px',

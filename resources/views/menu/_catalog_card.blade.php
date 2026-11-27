@@ -11,6 +11,7 @@
     // Same preselection as the order card: smallest size, sweetness closest to Normal.
     $preSweet = collect($sweetness)->sortBy(fn ($level) => [abs($sweetnessPercents[$level] - 100), $sweetnessPercents[$level]])->first();
     $firstSize = $sizes[0] ?? null;
+    $extraPrices = $product->extraMatchaPrices();
     $rupiah = fn (int $amount) => 'Rp'.number_format($amount, 0, ',', '.');
     $toneClass = [
         'amber' => 'bg-amber-soft',
@@ -51,6 +52,8 @@
                                     value="{{ $size }}"
                                     class="peer sr-only"
                                     data-price="{{ $rupiah($product->priceFor($size)) }}"
+                                    data-base="{{ $product->priceFor($size) }}"
+                                    data-extra="{{ $extraPrices[$size] ?? 0 }}"
                                     @checked($size === $firstSize)
                                 >
                                 <span class="yc-chip">
@@ -75,6 +78,21 @@
                                 </span>
                             </label>
                         @endforeach
+                    </div>
+                </fieldset>
+            @endif
+
+            @if ($extraPrices !== [])
+                <fieldset class="flex flex-col gap-2" data-extra-field>
+                    <legend class="yc-mono mb-2 text-muted">Tambahan</legend>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="block">
+                            <input type="checkbox" name="extra_matcha" value="1" class="peer sr-only" data-extra-toggle @disabled(! isset($extraPrices[$firstSize]))>
+                            <span class="yc-chip">
+                                <span class="text-sm font-bold leading-[18px]">Extra matcha</span>
+                                <span class="yc-chip-sub" data-extra-sub>{{ isset($extraPrices[$firstSize]) ? '+'.$rupiah($extraPrices[$firstSize]) : 'Tidak ada' }}</span>
+                            </span>
+                        </label>
                     </div>
                 </fieldset>
             @endif

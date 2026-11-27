@@ -87,7 +87,12 @@
                                     @foreach ($variants as $variant)
                                         <tr class="border-b border-line last:border-0 align-top">
                                             <td class="px-5 py-3 font-semibold text-charcoal">{{ $variantText($variant['size']) ?: '-' }}</td>
-                                            <td class="px-3 py-3 text-charcoal">{{ $variantText($variant['sweetness']) ?: '-' }}</td>
+                                            <td class="px-3 py-3 text-charcoal">
+                                                {{ $variantText($variant['sweetness']) ?: '-' }}
+                                                @if ($variant['extra'])
+                                                    <span class="mt-1 block w-fit rounded-full bg-sage-soft px-2 py-0.5 text-xs font-bold text-brand">Extra matcha</span>
+                                                @endif
+                                            </td>
                                             <td class="px-3 py-3 text-right text-lg font-bold text-charcoal">{{ $variant['bottles'] }}</td>
                                             <td class="px-3 py-3 text-charcoal">
                                                 @forelse ($variant['ingredients'] as $id => $amount)
@@ -216,7 +221,7 @@
                                 </p>
                                 <ul class="mt-1 text-sm text-charcoal">
                                     @foreach ($order->items as $item)
-                                        @php $v = collect([$item->size, $item->sweetness])->filter(fn ($x) => $x && $x !== '-')->implode(', '); @endphp
+                                        @php $v = $item->variantLabel(); @endphp
                                         <li><span class="font-semibold">{{ $item->qty }}×</span> {{ optional($item->product)->name }} @if ($v)<span class="text-muted">({{ $v }})</span>@endif</li>
                                     @endforeach
                                 </ul>

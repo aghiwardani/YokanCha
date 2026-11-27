@@ -46,16 +46,22 @@
                     />
                 </div>
 
-                <div>
-                    <label for="category" class="block text-sm font-semibold text-charcoal mb-2">Kategori</label>
-                    <input
-                        type="text"
-                        id="category"
-                        name="category"
-                        value="{{ old('category', $product->category ?? 'minuman') }}"
-                        class="w-full px-4 py-3 border-2 border-brand rounded-brand focus:outline-none focus:ring-2 focus:ring-cta @error('category') border-red-500 @enderror"
-                    />
-                </div>
+                <fieldset>
+                    <legend class="block text-sm font-semibold text-charcoal mb-2">Kategori</legend>
+                    @php $currentCategory = old('category', $product->exists ? $product->categoryKey() : 'matcha'); @endphp
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (App\Models\Product::CATEGORIES as $value => $text)
+                            <label class="flex items-center gap-2 rounded-chip border border-line bg-surface px-3 py-2 text-sm text-charcoal">
+                                <input type="radio" name="category" value="{{ $value }}" @checked($currentCategory === $value) />
+                                {{ $text }}
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-charcoal opacity-75 mt-1">Menentukan tab tempat menu ini tampil di halaman menu.</p>
+                    @error('category')
+                        <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </fieldset>
 
                 <div>
                     <label for="description" class="block text-sm font-semibold text-charcoal mb-2">Deskripsi</label>
@@ -162,6 +168,33 @@
                     @error('sweetness')
                         <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
                     @enderror
+                </fieldset>
+
+                @php
+                    $matchaSizes = \App\Models\Size::where('extra_matcha_price', '>', 0)->smallestFirst()->get();
+                    $hasMatcha = \App\Models\Ingredient::where('is_matcha', true)->exists();
+                @endphp
+                <fieldset>
+                    <legend class="block text-sm font-semibold text-charcoal mb-2">Extra matcha</legend>
+                    <input type="hidden" name="allow_extra_matcha" value="0" />
+                    <label class="flex items-center gap-2 text-sm text-charcoal">
+                        <input type="checkbox" name="allow_extra_matcha" value="1" @checked(old('allow_extra_matcha', $product->allow_extra_matcha ?? true)) />
+                        Pembeli bisa pilih Extra matcha untuk menu ini
+                    </label>
+                    <p class="text-xs text-charcoal opacity-75 mt-1">
+                        @if ($matchaSizes->isEmpty())
+                            Belum ada ukuran yang punya harga extra matcha. Atur di <a href="{{ route('admin.master') }}#ukuran" class="underline">Ukuran</a>.
+                        @else
+                            Harga tambahannya ikut ukuran:
+                            {{ $matchaSizes->map(fn ($s) => $s->name.' +Rp'.number_format($s->extra_matcha_price, 0, ',', '.').' (+'.$s->extra_matcha_percent.'% matcha)')->implode(', ') }}.
+                            Hanya muncul di ukuran yang dicentang di produk ini dan resepnya memakai bahan bertanda Ini matcha.
+                        @endif
+                    </p>
+                    @if ($matchaSizes->isNotEmpty() && ! $hasMatcha)
+                        <p class="mt-2 p-2 text-xs text-charcoal bg-amber-50 border-2 border-amber-400 rounded-brand">
+                            Extra matcha belum tampil di menu karena belum ada bahan yang dicentang <strong>Ini matcha</strong>. Centang di <a href="{{ route('admin.master') }}#bahan" class="underline">Bahan</a>.
+                        </p>
+                    @endif
                 </fieldset>
 
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">

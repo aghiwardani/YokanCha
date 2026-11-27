@@ -184,7 +184,7 @@
                                         <li>
                                             <span class="font-semibold">{{ $item->qty }}×</span>
                                             {{ optional($item->product)->name ?? 'Produk dihapus' }}
-                                            @php $variant = collect([$item->size, $item->sweetness])->filter(fn ($v) => $v && $v !== '-')->implode(', '); @endphp
+                                            @php $variant = $item->variantLabel(); @endphp
                                             @if ($variant)
                                                 <span class="text-muted">({{ $variant }})</span>
                                             @endif

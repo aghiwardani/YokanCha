@@ -26,7 +26,7 @@
                     <div class="flex items-start justify-between gap-4 border-t border-line py-3">
                         <div>
                             <p class="font-bold text-charcoal">{{ $line['product']->name }}</p>
-                            <p class="text-sm leading-[22px] text-muted">{{ $line['size'] }} · {{ $line['sweetness'] }} · {{ $line['qty'] }} botol</p>
+                            <p class="text-sm leading-[22px] text-muted">{{ $line['size'] }} · {{ $line['sweetness'] }}{{ $line['extra'] ? ' · Extra matcha' : '' }} · {{ $line['qty'] }} botol</p>
                         </div>
                         <span class="whitespace-nowrap font-bold text-charcoal">Rp{{ number_format($line['line_total'], 0, ',', '.') }}</span>
                     </div>

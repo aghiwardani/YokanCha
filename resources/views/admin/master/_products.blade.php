@@ -47,6 +47,7 @@
                         <div class="min-w-0">
                             <p class="flex flex-wrap items-center gap-2 font-bold {{ $product->is_active ? 'text-charcoal' : 'text-muted' }}">
                                 {{ $product->name }}
+                                <span class="rounded-full {{ $product->categoryKey() === 'coffee' ? 'bg-amber-soft text-amber-text' : 'bg-sage-soft text-brand' }} px-2 py-0.5 text-xs font-bold">{{ $product->categoryLabel() }}</span>
                                 @unless ($product->is_active)
                                     <span class="rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-muted">Nonaktif</span>
                                 @endunless

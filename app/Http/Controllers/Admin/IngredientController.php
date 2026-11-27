@@ -57,7 +57,8 @@ class IngredientController extends Controller
     private function validated(Request $request, ?Ingredient $ingredient = null): array
     {
         // An unchecked checkbox is simply absent from the request.
-        $request->merge(['is_sugar' => $request->boolean('is_sugar')]);
+        $request->merge(collect(['is_sugar', 'is_matcha', 'is_water', 'is_milk'])
+            ->mapWithKeys(fn ($flag) => [$flag => $request->boolean($flag)])->all());
         // Amounts may arrive typed the Indonesian way ("1.000", "38.000").
         $request->merge([
             'pack_size' => Number::normalize($request->input('pack_size')),
@@ -69,6 +70,11 @@ class IngredientController extends Controller
             'unit' => ['required', 'in:g,ml'],
             // Any number of ingredients can be sweeteners (gula cair, maple, simple syrup).
             'is_sugar' => ['boolean'],
+            // Extra matcha: matcha and water go up by the size's percent, milk
+            // goes down by the water added so the bottle stays full, not over.
+            'is_matcha' => ['boolean'],
+            'is_water' => ['boolean'],
+            'is_milk' => ['boolean'],
             // Usual purchase: pack_size units for pack_price Rupiah.
             'pack_size' => ['nullable', 'required_with:pack_price', 'numeric', 'gt:0', 'max:99999999'],
             'pack_price' => ['nullable', 'required_with:pack_size', 'integer', 'min:0', 'max:999999999999'],

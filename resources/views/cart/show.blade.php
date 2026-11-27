@@ -26,7 +26,7 @@
                         <div class="flex flex-col gap-1">
                             <h2 class="font-display text-[22px] leading-7 text-charcoal">{{ $line['product']->name }}</h2>
                             <p class="text-sm leading-[22px] text-muted">
-                                {{ $line['size'] }} · {{ $line['sweetness'] }} · Rp{{ number_format($line['unit_price'], 0, ',', '.') }}/botol
+                                {{ $line['size'] }} · {{ $line['sweetness'] }}{{ $line['extra'] ? ' · Extra matcha' : '' }} · Rp{{ number_format($line['unit_price'], 0, ',', '.') }}/botol
                             </p>
                         </div>
 

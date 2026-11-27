@@ -34,10 +34,25 @@
                     <option value="ml" @selected($ingredientAddOld('unit') === 'ml')>mililiter (ml)</option>
                 </select>
             </div>
-            <label class="flex items-center gap-2 py-2 text-sm text-charcoal">
-                <input type="checkbox" name="is_sugar" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($ingredientAddOld('is_sugar')) />
-                Ini gula
-            </label>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+                <label class="flex items-center gap-2 text-sm text-charcoal">
+                    <input type="checkbox" name="is_sugar" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($ingredientAddOld('is_sugar')) />
+                    Ini gula
+                </label>
+                <label class="flex items-center gap-2 text-sm text-charcoal" title="Extra matcha menambah takaran bahan ini sesuai persen ukuran">
+                    <input type="checkbox" name="is_matcha" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($ingredientAddOld('is_matcha')) />
+                    Ini matcha
+                </label>
+                <label class="flex items-center gap-2 text-sm text-charcoal" title="Saat extra matcha, takaran air ikut naik dengan persen yang sama">
+                    <input type="checkbox" name="is_water" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($ingredientAddOld('is_water')) />
+                    Ini air
+                </label>
+                <label class="flex items-center gap-2 text-sm text-charcoal" title="Saat extra matcha, susu dikurangi sebanyak air yang ditambahkan">
+                    <input type="checkbox" name="is_milk" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($ingredientAddOld('is_milk')) />
+                    Ini susu
+                </label>
+            </div>
+
             <button type="submit" class="rounded-brand bg-cta px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cta focus-visible:ring-offset-2">
                 Tambah bahan
             </button>
@@ -86,6 +101,15 @@
                                 @if ($ingredient->is_sugar)
                                     <span class="shrink-0 rounded-full bg-amber-soft px-2 py-0.5 text-xs font-bold text-amber-text">Gula</span>
                                 @endif
+                                @if ($ingredient->is_matcha)
+                                    <span class="shrink-0 rounded-full bg-sage-soft px-2 py-0.5 text-xs font-bold text-brand">Matcha</span>
+                                @endif
+                                @if ($ingredient->is_water)
+                                    <span class="shrink-0 rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-charcoal">Air</span>
+                                @endif
+                                @if ($ingredient->is_milk)
+                                    <span class="shrink-0 rounded-full bg-oat-deep px-2 py-0.5 text-xs font-bold text-charcoal">Susu</span>
+                                @endif
                             </span>
                             <span class="col-start-1 text-sm text-muted sm:col-start-auto">
                                 {{ $ingredient->unit }}
@@ -129,10 +153,25 @@
                                             <option value="ml" @selected(($failed ? old('unit') : $ingredient->unit) === 'ml')>mililiter (ml)</option>
                                         </select>
                                     </div>
-                                    <label class="flex items-center gap-2 py-2 text-sm text-charcoal">
-                                        <input type="checkbox" name="is_sugar" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($failed ? old('is_sugar') : $ingredient->is_sugar) />
-                                        Ini gula
-                                    </label>
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+                                        <label class="flex items-center gap-2 text-sm text-charcoal">
+                                            <input type="checkbox" name="is_sugar" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($failed ? old('is_sugar') : $ingredient->is_sugar) />
+                                            Ini gula
+                                        </label>
+                                        <label class="flex items-center gap-2 text-sm text-charcoal" title="Extra matcha menambah takaran bahan ini sesuai persen ukuran">
+                                            <input type="checkbox" name="is_matcha" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($failed ? old('is_matcha') : $ingredient->is_matcha) />
+                                            Ini matcha
+                                        </label>
+                                        <label class="flex items-center gap-2 text-sm text-charcoal" title="Saat extra matcha, takaran air ikut naik dengan persen yang sama">
+                                            <input type="checkbox" name="is_water" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($failed ? old('is_water') : $ingredient->is_water) />
+                                            Ini air
+                                        </label>
+                                        <label class="flex items-center gap-2 text-sm text-charcoal" title="Saat extra matcha, susu dikurangi sebanyak air yang ditambahkan">
+                                            <input type="checkbox" name="is_milk" value="1" class="h-4 w-4 rounded border-line text-brand focus:ring-brand" @checked($failed ? old('is_milk') : $ingredient->is_milk) />
+                                            Ini susu
+                                        </label>
+                                    </div>
+
                                     <button type="submit" class="rounded-brand bg-brand px-4 py-2 text-sm font-bold text-surface transition hover:bg-opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
                                         Simpan perubahan
                                     </button>

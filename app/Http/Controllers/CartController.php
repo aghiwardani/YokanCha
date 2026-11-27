@@ -25,21 +25,25 @@ class CartController extends Controller
      */
     public function add(Request $request, MenuAvailability $menuAvailability): RedirectResponse|JsonResponse
     {
-        $fromMenu = url()->previous() === route('menu.index');
+        // The menu may carry ?kategori=coffee; send them back to that same tab.
+        $previous = strtok(url()->previous(), '#');
+        $fromMenu = strtok($previous, '?') === route('menu.index');
+        $backToMenu = $previous.'#menu';
 
         try {
             $ppp = $this->addLine($request);
         } catch (ValidationException $e) {
             // Land back on the #menu section so the error is on screen, not the hero.
             if ($fromMenu) {
-                $e->redirectTo(route('menu.index').'#menu');
+                $e->redirectTo($backToMenu);
             }
 
             throw $e;
         }
 
         $qty = (int) $request->input('qty');
-        $message = ($qty > 1 ? "{$qty} botol " : '')."{$ppp->product->name} masuk keranjang.";
+        $message = ($qty > 1 ? "{$qty} botol " : '')."{$ppp->product->name}"
+            .($request->boolean('extra_matcha') ? ' extra matcha' : '').' masuk keranjang.';
 
         if ($request->expectsJson()) {
             // Fresh stock for every card in the batch: ingredients are shared,
@@ -57,7 +61,7 @@ class CartController extends Controller
         }
 
         if ($fromMenu) {
-            return redirect()->to(route('menu.index').'#menu')->with('cart_status', $message);
+            return redirect()->to($backToMenu)->with('cart_status', $message);
         }
 
         return redirect()->route('cart.show');
@@ -70,6 +74,7 @@ class CartController extends Controller
             'qty' => ['required', 'integer', 'min:1'],
             'size' => ['required', 'string'],
             'sweetness' => ['required', 'string'],
+            'extra_matcha' => ['nullable', 'boolean'],
         ]);
 
         $ppp = $this->openVariant((int) $data['po_period_product_id']);
@@ -77,7 +82,14 @@ class CartController extends Controller
         $this->assertOffered($data['size'], $ppp->product->size_options, 'size', 'ukuran');
         $this->assertOffered($data['sweetness'], $ppp->product->sweetness_options, 'sweetness', 'manis');
 
-        $lineKey = "{$ppp->id}|{$data['size']}|{$data['sweetness']}";
+        $extra = $request->boolean('extra_matcha');
+        if ($extra && $ppp->product->extraMatchaPrice($data['size']) <= 0) {
+            throw ValidationException::withMessages([
+                'extra_matcha' => "Extra matcha belum ada untuk {$ppp->product->name} ukuran {$data['size']}.",
+            ]);
+        }
+
+        $lineKey = CartService::lineKey($ppp->id, $data['size'], $data['sweetness'], $extra);
         $lineQty = (int) ($this->cart->line($lineKey)['qty'] ?? 0) + (int) $data['qty'];
 
         $this->assertVariantLimits(
@@ -87,9 +99,10 @@ class CartController extends Controller
             $lineQty,
             $this->cart->variantQty($ppp->id) + (int) $data['qty'],
             null,
+            $extra,
         );
 
-        $this->cart->add($ppp->id, (int) $data['qty'], $data['size'], $data['sweetness']);
+        $this->cart->add($ppp->id, (int) $data['qty'], $data['size'], $data['sweetness'], $extra);
 
         return $ppp;
     }
@@ -99,6 +112,9 @@ class CartController extends Controller
         $lines = $this->cart->items();
 
         $subtotal = array_sum(array_column($lines, 'line_total'));
+
+        view()->share('ycTheme', \App\Models\Product::themeFor(array_column($lines, 'product')));
+        view()->share('ycSwitchable', false);
 
         return view('cart.show', [
             'lines' => $lines,
@@ -125,6 +141,7 @@ class CartController extends Controller
                     (int) $data['qty'],
                     $this->cart->variantQty($ppp->id, $lineKey) + (int) $data['qty'],
                     $lineKey,
+                    (bool) ($line['extra'] ?? false),
                 );
             }
         }
@@ -191,6 +208,7 @@ class CartController extends Controller
         int $lineQty,
         int $variantTotal,
         ?string $exceptLineKey,
+        bool $extra = false,
     ): void {
         $max = config('yokancha.max_per_variant');
         $name = $ppp->product->name;
@@ -201,19 +219,20 @@ class CartController extends Controller
             ]);
         }
 
-        $thisKey = "{$ppp->id}|{$size}|{$sweetness}";
+        $thisKey = CartService::lineKey($ppp->id, $size, $sweetness, $extra);
         $others = $this->stock->need(array_values(array_filter(
             $this->cart->items(),
             fn (array $line) => $line['line_key'] !== $thisKey && $line['line_key'] !== $exceptLineKey,
         )));
 
-        $canMake = $this->stock->available($ppp, $size, $sweetness, $others);
+        $canMake = $this->stock->available($ppp, $size, $sweetness, $others, $extra);
+        $what = $extra ? "{$name} extra matcha" : $name;
 
         if ($lineQty > $canMake) {
             throw ValidationException::withMessages([
                 'qty' => $canMake === 0
-                    ? "{$name} sudah habis untuk batch ini."
-                    : "Stok {$name} ukuran {$size} tinggal cukup buat {$canMake} botol lagi.",
+                    ? "{$what} sudah habis untuk batch ini."
+                    : "Stok {$what} ukuran {$size} tinggal cukup buat {$canMake} botol lagi.",
             ]);
         }
     }

@@ -26,7 +26,7 @@
                     <div class="flex items-start justify-between gap-4 border-t border-line py-3">
                         <div>
                             <p class="font-bold text-charcoal">{{ $item->product->name }}</p>
-                            <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }} · {{ $item->qty }} botol</p>
+                            <p class="text-sm leading-[22px] text-muted">{{ $item->size }} · {{ $item->sweetness }}{{ $item->extra_matcha ? ' · Extra matcha' : '' }} · {{ $item->qty }} botol</p>
                         </div>
                         <span class="whitespace-nowrap font-bold text-charcoal">Rp{{ number_format($item->qty * $item->unit_price, 0, ',', '.') }}</span>
                     </div>

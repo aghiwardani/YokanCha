@@ -47,13 +47,15 @@ class PeriodReport
             foreach ($order->items as $item) {
                 $size = (string) $item->size;
                 $sweetness = (string) $item->sweetness;
-                $key = $item->product_id.'|'.$size.'|'.$sweetness;
+                $extra = (bool) $item->extra_matcha;
+                $key = $item->product_id.'|'.$size.'|'.$sweetness.($extra ? '|extra' : '');
 
                 $variants[$key] ??= [
                     'product' => $item->product?->name ?? 'Produk dihapus',
                     'sort' => [$item->product?->sort_order ?? PHP_INT_MAX, $item->product?->name ?? ''],
                     'size' => $size,
                     'sweetness' => $sweetness,
+                    'extra' => $extra,
                     'volume' => Size::sortVolume($sizeVolumes[$size] ?? Size::volumeFromName($size)),
                     'percent' => SweetnessLevel::percentFor($sweetness, $percentMap),
                     'bottles' => 0,
@@ -68,7 +70,7 @@ class PeriodReport
                 $usages = $item->ingredientUsages->isNotEmpty()
                     ? $item->ingredientUsages->mapWithKeys(fn ($u) => [$u->ingredient_id => (float) $u->amount])->all()
                     : ($item->product
-                        ? array_map(fn ($a) => $a * $item->qty, $this->stock->perBottle($item->product, $size, $sweetness))
+                        ? array_map(fn ($a) => $a * $item->qty, $this->stock->perBottle($item->product, $size, $sweetness, $extra))
                         : []);
 
                 foreach ($usages as $ingredientId => $amount) {
@@ -78,8 +80,8 @@ class PeriodReport
             }
         }
 
-        usort($variants, fn ($a, $b) => [$a['sort'], $a['volume'], $a['percent'], $a['size'], $a['sweetness']]
-            <=> [$b['sort'], $b['volume'], $b['percent'], $b['size'], $b['sweetness']]);
+        usort($variants, fn ($a, $b) => [$a['sort'], $a['volume'], $a['percent'], $a['size'], $a['sweetness'], $a['extra']]
+            <=> [$b['sort'], $b['volume'], $b['percent'], $b['size'], $b['sweetness'], $b['extra']]);
 
         $ingredients = Ingredient::whereIn('id', array_keys($totals))->orderBy('name')->get()->keyBy('id');
         $stock = PoPeriodIngredient::where('po_period_id', $period->id)->get()->keyBy('ingredient_id');
@@ -163,6 +165,11 @@ class PeriodReport
             'byProduct' => $this->rollUp($variants, 'product', fn ($v) => $v['sort']),
             'bySize' => $this->rollUp($variants, 'size', fn ($v) => $v['volume']),
             'bySweetness' => $this->rollUp($variants, 'sweetness', fn ($v) => $v['percent']),
+            'byExtra' => $this->rollUp(
+                array_map(fn ($v) => ['matcha' => $v['extra'] ? 'Extra matcha' : 'Biasa'] + $v, $variants),
+                'matcha',
+                fn ($v) => $v['extra'] ? 1 : 0,
+            ),
             'buyers' => $orders->groupBy(fn (Order $o) => mb_strtolower(trim($o->customer_name)))
                 ->map(fn ($group) => [
                     'name' => $group->first()->customer_name,

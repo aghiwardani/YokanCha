@@ -172,22 +172,22 @@
                             <p class="text-sm leading-[22px] text-muted">Menunya bisa kamu lihat sekarang. Pesannya nanti saat batch berikutnya dibuka, infonya ada di sini.</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        @foreach ($catalog as $product)
-                            @include('menu._catalog_card', ['product' => $product])
-                        @endforeach
-                    </div>
+                    @php $groups = $catalog->groupBy(fn ($product) => $product->categoryKey()); @endphp
+                    @include('menu._tabs', ['groups' => $groups])
+                    @foreach ($tabs as $category)
+                        @include('menu._panel', ['category' => $category, 'cards' => $groups[$category] ?? collect(), 'card' => 'menu._catalog_card'])
+                    @endforeach
                 @endif
             @elseif ($items->isEmpty())
                 <div class="rounded-card border border-charcoal bg-surface px-8 py-12 text-center">
                     <p class="font-display text-[25px] leading-7 text-charcoal">Menu batch ini belum siap.</p>
                 </div>
             @else
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($items as $item)
-                        @include('menu._card', ['item' => $item, 'availability' => $availability])
-                    @endforeach
-                </div>
+                @php $groups = $items->groupBy(fn ($item) => $item->product->categoryKey()); @endphp
+                @include('menu._tabs', ['groups' => $groups])
+                @foreach ($tabs as $category)
+                    @include('menu._panel', ['category' => $category, 'cards' => $groups[$category] ?? collect(), 'card' => 'menu._card'])
+                @endforeach
             @endif
         </section>
 

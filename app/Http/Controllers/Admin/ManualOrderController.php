@@ -63,6 +63,7 @@ class ManualOrderController extends Controller
             'lines.*.sweetness' => ['nullable', 'string', 'max:100'],
             'lines.*.qty' => ['nullable', 'integer', 'min:1', 'max:999'],
             'lines.*.price' => ['nullable', 'integer', 'min:0', 'max:99999999'],
+            'lines.*.extra' => ['nullable', 'boolean'],
         ], [
             'lines.required' => 'Tambahkan minimal satu menu.',
         ], [
@@ -98,6 +99,7 @@ class ManualOrderController extends Controller
                     'product_id' => $line['product']->id,
                     'size' => $line['size'],
                     'sweetness' => $line['sweetness'],
+                    'extra_matcha' => $line['extra'],
                     'qty' => $line['qty'],
                     'unit_price' => $line['unit_price'],
                 ]);
@@ -117,7 +119,9 @@ class ManualOrderController extends Controller
      * Menu of a period for the form: each product with its sizes (and price
      * per size) and sweetness levels.
      *
-     * @return list<array{ppp:int, name:string, active:bool, sizes:array<string,int>, sweetness:list<string>}>
+     * extras: size => extra matcha price, only sizes that offer it.
+     *
+     * @return list<array{ppp:int, name:string, active:bool, sizes:array<string,int>, extras:array<string,int>, sweetness:list<string>}>
      */
     private function menuFor(PoPeriod $period): array
     {
@@ -133,6 +137,7 @@ class ManualOrderController extends Controller
                     'name' => $product->name,
                     'active' => (bool) $product->is_active,
                     'sizes' => collect($sizes)->mapWithKeys(fn ($s) => [$s => $product->priceFor($s === '-' ? null : $s)])->all(),
+                    'extras' => (object) $product->extraMatchaPrices(),
                     'sweetness' => array_keys($product->sweetnessLeastFirst()) ?: ['-'],
                 ];
             })->values()->all();
@@ -175,8 +180,14 @@ class ManualOrderController extends Controller
                 $errors["lines.{$i}.qty"] = "Isi jumlah botol {$product->name}.";
             }
 
+            $extra = filter_var($row['extra'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $extraPrice = $extra ? $product->extraMatchaPrice($size) : 0;
+            if ($extra && $extraPrice <= 0) {
+                $errors["lines.{$i}.extra"] = "Extra matcha belum ada untuk {$product->name} ukuran {$size}.";
+            }
+
             $price = ($row['price'] ?? null) === null || $row['price'] === ''
-                ? $product->priceFor($size === '-' ? null : $size)
+                ? $product->priceFor($size === '-' ? null : $size) + $extraPrice
                 : (int) $row['price'];
 
             $lines[] = [
@@ -184,6 +195,7 @@ class ManualOrderController extends Controller
                 'product' => $product,
                 'size' => $size,
                 'sweetness' => $sweetness,
+                'extra' => $extra,
                 'qty' => (int) ($row['qty'] ?? 0),
                 'unit_price' => $price,
             ];

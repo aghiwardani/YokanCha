@@ -42,6 +42,11 @@
     ][$product->tone] ?? 'bg-sage-soft';
 
     $bottleLabel = $firstSize ?? '250 ml';
+
+    // Extra matcha per size (only sizes that offer it) and what is left with it.
+    $extraPrices = $product->extraMatchaPrices();
+    $extraCells = $stats['extraCells'] ?? [];
+    $preExtra = isset($extraPrices[$preSize]) && ($extraCells[$preSize][$firstEnabledSweet ?? '-'] ?? 0) > 0;
 @endphp
 
 <article
@@ -49,6 +54,7 @@
     data-product-card
     data-ppp="{{ $item->id }}"
     data-cells='@json((object) $cells)'
+    data-extra-cells='@json((object) $extraCells)'
     data-limit="{{ min($maxPerVariant, $limitLeft) }}"
 >
     {{-- Foto --}}
@@ -98,6 +104,8 @@
                                     value="{{ $size }}"
                                     class="peer sr-only"
                                     data-price="{{ $rupiah($product->priceFor($size)) }}"
+                                    data-base="{{ $product->priceFor($size) }}"
+                                    data-extra="{{ $extraPrices[$size] ?? 0 }}"
                                     @checked($size === $firstEnabledSize)
                                     @disabled($soldOut || ($sizeStock[$size] ?? 0) <= 0)
                                 >
@@ -138,7 +146,24 @@
             @else
                 <input type="hidden" name="sweetness" value="-">
             @endif
+
+            @if ($extraPrices !== [])
+                {{-- Extra matcha: price differs per size (master Ukuran); hidden for products whose sizes don't offer it. --}}
+                <fieldset class="flex flex-col gap-2" data-extra-field>
+                    <legend class="yc-mono mb-2 text-muted">Tambahan</legend>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="block">
+                            <input type="checkbox" name="extra_matcha" value="1" class="peer sr-only" data-extra-toggle @disabled($soldOut || ! $preExtra)>
+                            <span class="yc-chip">
+                                <span class="text-sm font-bold leading-[18px]">Extra matcha</span>
+                                <span class="yc-chip-sub" data-extra-sub>{{ isset($extraPrices[$preSize]) ? (($preExtra) ? '+'.$rupiah($extraPrices[$preSize]) : 'Habis') : 'Tidak ada' }}</span>
+                            </span>
+                        </label>
+                    </div>
+                </fieldset>
+            @endif
         </div>
+
 
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
             <p class="text-xl font-extrabold leading-5 tracking-[-0.2px] text-charcoal" data-price-display aria-live="polite">{{ $rupiah($price) }}</p>

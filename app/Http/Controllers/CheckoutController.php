@@ -33,6 +33,9 @@ class CheckoutController extends Controller
 
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
+        view()->share('ycTheme', \App\Models\Product::themeFor(array_column($lines, 'product')));
+        view()->share('ycSwitchable', false);
+
         return view('checkout.show', [
             'lines' => $lines,
             'subtotal' => $subtotal,
@@ -88,6 +91,7 @@ class CheckoutController extends Controller
                     'product_id' => $line['product']->id,
                     'size' => $line['size'],
                     'sweetness' => $line['sweetness'],
+                    'extra_matcha' => $line['extra'] ?? false,
                     'qty' => $line['qty'],
                     'unit_price' => $line['unit_price'],
                 ]);
@@ -116,6 +120,9 @@ class CheckoutController extends Controller
 
         $total = $order->items->sum(fn ($item) => $item->qty * $item->unit_price);
 
+        view()->share('ycTheme', \App\Models\Product::themeFor($order->items->pluck('product')));
+        view()->share('ycSwitchable', false);
+
         return view('checkout.confirmation', [
             'order' => $order,
             'total' => $total,
@@ -142,9 +149,7 @@ class CheckoutController extends Controller
         ];
 
         foreach ($order->items as $item) {
-            $options = collect([$item->size, $item->sweetness])
-                ->filter(fn ($value) => $value && $value !== '-')
-                ->implode(', ');
+            $options = $item->variantLabel();
 
             $lines[] = "- {$item->qty}x {$item->product->name}"
                 .($options ? " ({$options})" : '')

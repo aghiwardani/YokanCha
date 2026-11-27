@@ -22,6 +22,7 @@ class MenuAvailability
      *   keyed by po_period_product id. cells[size][sweetness] = bottles that can still be added,
      *   sizes[size] = best of its cells, stock = most bottles any variant can still be made,
      *   limit = bottles left under the per-order cap, max = min(stock, limit).
+     *   extraCells[size][sweetness] = the same with Extra matcha, only for sizes that offer it.
      */
     public function forItems(iterable $items): array
     {
@@ -41,13 +42,18 @@ class MenuAvailability
             $sweets = empty($product->sweetness_options) ? ['-'] : array_values($product->sweetness_options);
 
             $cells = [];
+            $extraCells = [];
             $perSize = [];
+            $extraPrices = $product->extraMatchaPrices();
             foreach ($sizes as $size) {
                 $best = 0;
                 foreach ($sweets as $sweet) {
                     $count = $this->stock->available($item, (string) $size, (string) $sweet, $needByPeriod[$periodId]);
                     $cells[$size][$sweet] = $count;
                     $best = max($best, $count);
+                    if (isset($extraPrices[$size])) {
+                        $extraCells[$size][$sweet] = $this->stock->available($item, (string) $size, (string) $sweet, $needByPeriod[$periodId], true);
+                    }
                 }
                 $perSize[$size] = $best;
             }
@@ -61,6 +67,7 @@ class MenuAvailability
                 'limit' => $limit,
                 'sizes' => $perSize,
                 'cells' => $cells,
+                'extraCells' => $extraCells,
             ];
         }
 
